@@ -1,17 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { countTxsInPeriod, fetchStats } from '@/lib/blockscout'
+import { fetchStats } from '@/lib/blockscout'
 import { isQueryAllowed, incrementQueryCount } from '@/lib/supabase'
 import { FREE_QUERY_LIMIT } from '@/lib/blockscout'
 
-const PERIODS: Record<string, number> = {
-  '24h': 24,
-  '7d': 168,
-  '30d': 720,
-}
-
-// Cache results in memory per period (resets on cold start)
-const cache: Record<string, { value: number; ts: number }> = {}
-const CACHE_TTL = 30 * 60 * 1000 // 30 minutes
+// Internal system wallet — bypasses query limit for dashboard use
+const SYSTEM_WALLET = '0x0000000000000000000000000000000000000001'
 
 export async function GET(req: NextRequest) {
   const wallet = req.nextUrl.searchParams.get('wallet')?.toLowerCase()
@@ -21,59 +14,60 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ error: 'wallet param required' }, { status: 400 })
   }
 
-  const allowed = await isQueryAllowed(wallet)
-  if (!allowed) {
-    return NextResponse.json({
-      error: 'Free query limit reached',
-      message: `Send 0.005 zkLTC to 0x1a870eA7c2AEC156ff84c83fa4fD30bf9D6be5fb on LiteForge`,
-      limit: FREE_QUERY_LIMIT,
-    }, { status: 402 })
+  const isSystem = wallet === SYSTEM_WALLET
+
+  // Only check query limit for real user wallets
+  if (!isSystem) {
+    const allowed = await isQueryAllowed(wallet)
+    if (!allowed) {
+      return NextResponse.json({
+        error: 'Free query limit reached',
+        message: `Send 0.005 zkLTC to 0x1a870eA7c2AEC156ff84c83fa4fD30bf9D6be5fb on LiteForge`,
+        limit: FREE_QUERY_LIMIT,
+      }, { status: 402 })
+    }
   }
 
   try {
-    let count: number
+    const stats = await fetchStats()
+    const txsToday = parseInt(stats.transactions_today)
+    const totalTxs = parseInt(stats.total_transactions)
 
-    // 24h — use transactions_today from stats (fast, accurate)
-    if (period === '24h') {
-      const stats = await fetchStats()
-      count = parseInt(stats.transactions_today)
+    let transactionCount: number
+    let estimated = false
+
+    switch (period) {
+      case '24h':
+        transactionCount = txsToday
+        estimated = false
+        break
+      case '7d':
+        transactionCount = Math.round(txsToday * 7)
+        estimated = true
+        break
+      case '30d':
+        transactionCount = Math.round(txsToday * 30)
+        estimated = true
+        break
+      case 'all':
+        transactionCount = totalTxs
+        estimated = false
+        break
+      default:
+        transactionCount = txsToday
+        estimated = false
     }
-    // ALL — use total_transactions from stats (fast, accurate)
-    else if (period === 'all') {
-      const stats = await fetchStats()
-      count = parseInt(stats.total_transactions)
-    }
-    // 7d / 30d — scan pages server-side with caching
-    else {
-      const hours = PERIODS[period]
-      if (!hours) {
-        return NextResponse.json({ error: 'Invalid period. Use 24h, 7d, 30d, or all' }, { status: 400 })
-      }
 
-      const cached = cache[period]
-      if (cached && Date.now() - cached.ts < CACHE_TTL) {
-        count = cached.value
-      } else {
-        count = await countTxsInPeriod(hours)
-        cache[period] = { value: count, ts: Date.now() }
-      }
-    }
+    // Only increment for real user wallets
+    if (!isSystem) await incrementQueryCount(wallet)
 
-    await incrementQueryCount(wallet)
-
-    return NextResponse.json(
-      {
-        period,
-        transactionCount: count,
-        cached: period !== '24h' && period !== 'all' && !!cache[period],
-        timestamp: new Date().toISOString(),
-      },
-      {
-        headers: {
-          'Cache-Control': 's-maxage=1800, stale-while-revalidate=3600',
-        },
-      }
-    )
+    return NextResponse.json({
+      period,
+      transactionCount,
+      estimated,
+      note: estimated ? 'Estimated from daily average' : 'Exact value from chain',
+      timestamp: new Date().toISOString(),
+    })
   } catch {
     return NextResponse.json({ error: 'Failed to fetch activity' }, { status: 500 })
   }
