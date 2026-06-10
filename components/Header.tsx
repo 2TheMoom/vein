@@ -1,4 +1,5 @@
 'use client'
+import Link from 'next/link'
 import { IconFileAnalytics, IconKey } from '@tabler/icons-react'
 
 interface HeaderProps {
@@ -13,8 +14,14 @@ export function Header({ blockNumber, lastUpdated, onWeeklyReport, onApiAccess }
     <header className="bg-charcoal">
       {/* Top row — logo + live meta */}
       <div className="flex items-center justify-between px-6 py-3 border-b border-[#2A2D31]">
-        <div className="flex items-center gap-3">
-          <div className="w-9 h-9 bg-rock rounded-lg border border-[#2E3238] flex items-center justify-center flex-shrink-0">
+
+        {/* Logo — links back to landing page */}
+        <Link
+          href="/"
+          className="flex items-center gap-3 group"
+          title="Back to home"
+        >
+          <div className="w-9 h-9 bg-rock rounded-lg border border-[#2E3238] flex items-center justify-center shrink-0 group-hover:border-silver transition-colors">
             <svg width="22" height="22" viewBox="0 0 24 24" fill="none">
               <line x1="8" y1="22" x2="11" y2="4" stroke="#2E363E" strokeWidth="0.6"/>
               <line x1="5" y1="14" x2="14" y2="14" stroke="#2E363E" strokeWidth="0.4"/>
@@ -26,10 +33,15 @@ export function Header({ blockNumber, lastUpdated, onWeeklyReport, onApiAccess }
             </svg>
           </div>
           <div>
-            <div className="font-condensed text-xl font-black tracking-tight text-parchment leading-none">VEIN</div>
-            <div className="font-mono text-[9px] tracking-[0.18em] text-dim mt-0.5">LITEFORGE INTELLIGENCE</div>
+            <div className="font-condensed text-xl font-black tracking-tight text-parchment leading-none group-hover:text-silver transition-colors">
+              VEIN
+            </div>
+            <div className="font-mono text-[9px] tracking-[0.18em] text-dim mt-0.5">
+              LITEFORGE INTELLIGENCE
+            </div>
           </div>
-        </div>
+        </Link>
+
         <div className="flex items-center gap-4">
           <div className="flex items-center gap-1.5">
             <span className="w-1.5 h-1.5 rounded-full bg-green inline-block animate-pulse"/>
@@ -48,13 +60,13 @@ export function Header({ blockNumber, lastUpdated, onWeeklyReport, onApiAccess }
         </div>
       </div>
 
-      {/* Feature buttons row — prominent */}
+      {/* Feature buttons row */}
       <div className="flex items-center gap-3 px-6 py-2.5">
         <button
           onClick={onWeeklyReport}
           className="flex items-center gap-2.5 bg-navy hover:bg-[#2A4BAF] transition-colors text-parchment rounded-lg px-4 py-2.5 flex-1 max-w-[260px]"
         >
-          <IconFileAnalytics size={18} className="flex-shrink-0" />
+          <IconFileAnalytics size={18} className="shrink-0" />
           <div className="text-left">
             <div className="font-mono text-[11px] font-medium tracking-[0.08em]">WEEKLY REPORT</div>
             <div className="font-mono text-[9px] text-[#8BAAD4] tracking-[0.06em] mt-0.5 hidden sm:block">
@@ -69,7 +81,7 @@ export function Header({ blockNumber, lastUpdated, onWeeklyReport, onApiAccess }
           onClick={onApiAccess}
           className="flex items-center gap-2.5 bg-navy hover:bg-[#2A4BAF] transition-colors text-parchment rounded-lg px-4 py-2.5 flex-1 max-w-[260px]"
         >
-          <IconKey size={18} className="flex-shrink-0" />
+          <IconKey size={18} className="shrink-0" />
           <div className="text-left">
             <div className="font-mono text-[11px] font-medium tracking-[0.08em]">API ACCESS</div>
             <div className="font-mono text-[9px] text-[#8BAAD4] tracking-[0.06em] mt-0.5 hidden sm:block">
