@@ -1,370 +1,151 @@
 'use client'
-import { useState, useEffect, useCallback } from 'react'
-import { Header } from '@/components/Header'
-import { HeroCards } from '@/components/HeroCards'
-import { ChainStrip } from '@/components/ChainStrip'
-import { QueryPanel } from '@/components/QueryPanel'
-import { WeeklyReportModal } from '@/components/WeeklyReportModal'
-import { ApiAccessModal } from '@/components/ApiAccessModal'
-import { Footer } from '@/components/Footer'
-import {
-  fetchStats,
-  fetchTransactions,
-  fetchTokenTransfers,
-  fetchSmartContracts,
-  classifyMethod,
-  formatNumber,
-  WZKLTC_ADDRESS,
-} from '@/lib/blockscout'
+import { useEffect, useState } from 'react'
+import Link from 'next/link'
+import { fetchStats, formatNumber } from '@/lib/blockscout'
 
-// Internal wallet for activity queries (no charge)
-const SYSTEM_WALLET = '0x0000000000000000000000000000000000000001'
-
-export default function Dashboard() {
+export default function Landing() {
   const [stats, setStats] = useState<any>(null)
-  const [txData, setTxData] = useState<any[]>([])
-  const [transfers, setTransfers] = useState<any[]>([])
-  const [contracts, setContracts] = useState<any[]>([])
-  const [loading, setLoading] = useState(true)
-  const [lastUpdated, setLastUpdated] = useState('')
-  const [showWeekly, setShowWeekly] = useState(false)
-  const [showApi, setShowApi] = useState(false)
-  const [period, setPeriod] = useState<'24H' | '7D' | '30D' | 'ALL'>('24H')
-  const [periodTxCount, setPeriodTxCount] = useState<number | null>(null)
-  const [periodLoading, setPeriodLoading] = useState(false)
-
-  // Load base chain data
-  const load = useCallback(async () => {
-    try {
-      const [s, tx, tr, ct] = await Promise.all([
-        fetchStats(),
-        fetchTransactions(),
-        fetchTokenTransfers(WZKLTC_ADDRESS),
-        fetchSmartContracts(),
-      ])
-      setStats(s)
-      setTxData(tx.items || [])
-      setTransfers(tr.items || [])
-      setContracts(ct.items || [])
-      setLastUpdated(new Date().toLocaleTimeString())
-    } catch (e) {
-      console.error('Fetch error', e)
-    } finally {
-      setLoading(false)
-    }
-  }, [])
-
-  // Fetch period-specific tx count from API route
-  const fetchPeriodCount = useCallback(async (p: string) => {
-    setPeriodLoading(true)
-    setPeriodTxCount(null)
-    try {
-      const periodParam = p.toLowerCase()
-      const res = await fetch(
-        `/api/intelligence/activity?wallet=${SYSTEM_WALLET}&period=${periodParam}`
-      )
-      if (res.ok) {
-        const data = await res.json()
-        setPeriodTxCount(data.transactionCount)
-      }
-    } catch (e) {
-      console.error('Period fetch error', e)
-    } finally {
-      setPeriodLoading(false)
-    }
-  }, [])
 
   useEffect(() => {
-    load()
-    const interval = setInterval(load, 30_000)
-    return () => clearInterval(interval)
-  }, [load])
-
-  // Fetch period count when period changes or stats load
-  useEffect(() => {
-    if (stats) fetchPeriodCount(period)
-  }, [period, stats, fetchPeriodCount])
-
-  // Method breakdown from recent txs
-  const methodCounts: Record<string, number> = {}
-  for (const tx of txData) {
-    const cat = classifyMethod(tx.method)
-    methodCounts[cat] = (methodCounts[cat] || 0) + 1
-  }
-  const totalMethods = Object.values(methodCounts).reduce((a, b) => a + b, 0)
-  const methodRows = Object.entries(methodCounts)
-    .sort((a, b) => b[1] - a[1])
-    .slice(0, 5)
-    .map(([method, count]) => ({
-      method,
-      count,
-      pct: totalMethods > 0 ? Math.round((count / totalMethods) * 100) : 0,
-    }))
-
-  // zkLTC data
-  const wzkltcMeta = transfers[0]?.token || null
-  let rawVol = BigInt(0)
-  for (const t of transfers) {
-    if (t.total?.value) rawVol += BigInt(t.total.value)
-  }
-  const bridgeCount = transfers.filter((t: any) => t.type === 'token_minting').length
-
-  // Top dApps
-  const topDapps = [...contracts]
-    .filter((c: any) => c.transaction_count > 0)
-    .sort((a: any, b: any) => (b.transaction_count || 0) - (a.transaction_count || 0))
-    .slice(0, 5)
-
-  const DAPP_TYPES: Record<string, string> = {
-    UniswapV2Router02: 'DEX',
-    LiteswapRouter: 'DEX',
-    CheckInNFT: 'NFT',
-    GlobalCounter: 'Tool',
-    AyniVault: 'Lend',
-    TWCloneFactory: 'Deploy',
-    LitClinicReception: 'Health',
-  }
-
-  if (loading) {
-    return (
-      <div className="min-h-screen bg-parchment flex items-center justify-center">
-        <div className="text-center">
-          <div className="font-condensed font-black text-5xl text-charcoal mb-2">VEIN</div>
-          <div className="font-mono text-[10px] text-dim tracking-[0.18em]">LOADING CHAIN DATA…</div>
-        </div>
-      </div>
-    )
-  }
-
-  // Display tx count for selected period
-  const displayTxCount = periodLoading
-    ? null
-    : periodTxCount !== null
-      ? periodTxCount
-      : period === '24H'
-        ? parseInt(stats?.transactions_today || '0')
-        : parseInt(stats?.total_transactions || '0')
+    fetchStats().then(setStats).catch(() => {})
+  }, [])
 
   return (
-    <div className="min-h-screen bg-parchment font-mono flex flex-col">
-      <Header
-        blockNumber={stats?.total_blocks}
-        lastUpdated={lastUpdated}
-        onWeeklyReport={() => setShowWeekly(true)}
-        onApiAccess={() => setShowApi(true)}
-      />
+    <div className="min-h-screen bg-charcoal font-mono flex flex-col">
 
-      <main className="flex-1 px-4 sm:px-6 py-5 space-y-2.5">
-        <div className="font-mono text-[10px] tracking-[0.18em] text-dim">ECOSYSTEM HEALTH</div>
-
-        {stats && (
-          <>
-            <HeroCards
-              totalTxs={stats.total_transactions}
-              totalAddresses={stats.total_addresses}
-              avgBlockTime={stats.average_block_time}
-              avgGasPrice={stats.gas_prices?.average ?? 0}
-              txsToday={stats.transactions_today}
-            />
-            <ChainStrip
-              slowGas={stats.gas_prices?.slow ?? 0}
-              avgGas={stats.gas_prices?.average ?? 0}
-              fastGas={stats.gas_prices?.fast ?? 0}
-              utilization={stats.network_utilization_percentage ?? 0}
-              totalBlocks={stats.total_blocks}
-              gasUsedToday={stats.gas_used_today}
-            />
-          </>
-        )}
-
-        {/* Activity + Method breakdown */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-2.5">
-          <div className="bg-surface border border-border rounded-xl p-4">
-            <div className="flex items-center justify-between mb-3">
-              <div className="font-mono text-[11px] tracking-[0.12em] text-charcoal font-medium">
-                TRANSACTION ACTIVITY
-              </div>
-              <div className="flex gap-1">
-                {(['24H', '7D', '30D', 'ALL'] as const).map(p => (
-                  <button
-                    key={p}
-                    onClick={() => setPeriod(p)}
-                    className={`font-mono text-[9px] tracking-[0.08em] px-2 py-1 rounded border transition-colors ${
-                      period === p
-                        ? 'bg-navy text-parchment border-navy'
-                        : 'border-muted text-dim hover:border-navy hover:text-navy'
-                    }`}
-                  >
-                    {p}
-                  </button>
-                ))}
-              </div>
-            </div>
-
-            {/* Bar chart */}
-            <div className="flex items-end gap-0.5 h-11 mb-3">
-              {[28, 40, 35, 55, 50, 68, 62, 84, 72, 90, 82, 100].map((h, i) => (
-                <div
-                  key={i}
-                  className={`flex-1 rounded-sm transition-all ${periodLoading ? 'bg-muted animate-pulse' : 'bg-navy'}`}
-                  style={{ height: `${h}%`, opacity: periodLoading ? 0.4 : i === 11 ? 1 : 0.65 }}
-                />
-              ))}
-            </div>
-
-            <div className="flex justify-between">
-              <div>
-                <div className="font-mono text-[10px] tracking-[0.12em] text-dim mb-1">
-                  TXS IN PERIOD
-                </div>
-                {periodLoading ? (
-                  <div className="font-condensed font-black text-2xl text-muted animate-pulse">
-                    scanning…
-                  </div>
-                ) : (
-                  <div className="font-condensed font-black text-2xl text-navy">
-                    {displayTxCount !== null ? formatNumber(displayTxCount) : '—'}
-                  </div>
-                )}
-                {(period === '7D' || period === '30D') && !periodLoading && (
-                  <div className="font-mono text-[9px] text-dim mt-0.5">live scan · cached 30min</div>
-                )}
-              </div>
-              <div className="text-right">
-                <div className="font-mono text-[10px] tracking-[0.12em] text-dim mb-1">NEW WALLETS</div>
-                <div className="font-condensed font-black text-2xl text-green">—</div>
-              </div>
-            </div>
+      {/* Nav */}
+      <nav className="flex items-center justify-between px-6 py-4 border-b border-[#2A2D31]">
+        <div className="flex items-center gap-3">
+          <div className="w-8 h-8 bg-[#232629] rounded-lg border border-[#2E3238] flex items-center justify-center">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none">
+              <line x1="8" y1="22" x2="11" y2="4" stroke="#2E363E" strokeWidth="0.6"/>
+              <line x1="5" y1="14" x2="14" y2="14" stroke="#2E363E" strokeWidth="0.4"/>
+              <polygon points="7,22 10,4 13,4 10,22" fill="#BEC8D2"/>
+              <line x1="10" y1="4" x2="7" y2="22" stroke="#E8ECF0" strokeWidth="0.9" opacity="0.7"/>
+              <line x1="13" y1="4" x2="10" y2="22" stroke="#7A8A94" strokeWidth="0.6" opacity="0.5"/>
+              <polygon points="9,22 11,4 13,4 11,22" fill="white" opacity="0.12"/>
+            </svg>
           </div>
-
-          <div className="bg-surface border border-border rounded-xl p-4">
-            <div className="flex items-center justify-between mb-3">
-              <div className="font-mono text-[11px] tracking-[0.12em] text-charcoal font-medium">
-                METHOD BREAKDOWN
-              </div>
-              <span className="font-mono text-[9px] bg-navy/10 text-navy border border-navy/30 px-1.5 py-0.5 rounded">
-                LIVE
-              </span>
-            </div>
-            <div className="space-y-1.5">
-              {methodRows.length > 0 ? (
-                methodRows.map(({ method, pct }) => (
-                  <div key={method} className="flex items-center gap-2">
-                    <div className="font-mono text-[10px] text-dim w-16 text-right shrink-0">{method}</div>
-                    <div className="flex-1 h-1.5 bg-[#E0DDD6] rounded-full overflow-hidden">
-                      <div
-                        className="h-full rounded-full"
-                        style={{
-                          width: `${pct}%`,
-                          background:
-                            method === 'swap' ? '#1F3A8F'
-                            : method === 'mint' ? '#1A6B3C'
-                            : '#5A5A60',
-                        }}
-                      />
-                    </div>
-                    <div className="font-mono text-[10px] text-charcoal w-8 text-right shrink-0">{pct}%</div>
-                  </div>
-                ))
-              ) : (
-                <div className="font-mono text-[10px] text-dim">Loading method data…</div>
-              )}
-            </div>
+          <div>
+            <div className="font-condensed font-black text-lg text-parchment leading-none tracking-tight">VEIN</div>
+            <div className="font-mono text-[8px] tracking-[0.16em] text-dim">LITEFORGE INTELLIGENCE</div>
           </div>
         </div>
-
-        {/* zkLTC + Top dApps */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-2.5">
-          <div className="md:col-span-2 bg-surface border border-border rounded-xl p-4">
-            <div className="flex items-center justify-between mb-3">
-              <div className="font-mono text-[11px] tracking-[0.12em] text-charcoal font-medium">
-                zkLTC / wzkLTC ACTIVITY
-              </div>
-              <span className="font-mono text-[9px] bg-green/20 text-green border border-green/40 px-1.5 py-0.5 rounded">
-                LIVE
-              </span>
-            </div>
-            <div className="space-y-0">
-              {[
-                {
-                  key: 'wzkLTC contract',
-                  val: `${WZKLTC_ADDRESS.slice(0, 6)}…${WZKLTC_ADDRESS.slice(-4)}`,
-                  cls: 'text-dim text-[10px]',
-                },
-                {
-                  key: 'Total holders',
-                  val: wzkltcMeta?.holders
-                    ? parseInt(wzkltcMeta.holders).toLocaleString()
-                    : '—',
-                  cls: 'font-condensed font-black text-lg text-navy',
-                },
-                {
-                  key: 'Total supply',
-                  val: wzkltcMeta?.total_supply
-                    ? `${formatNumber(parseInt(wzkltcMeta.total_supply) / 1e18)} wzkLTC`
-                    : '—',
-                  cls: 'font-condensed font-black text-lg',
-                },
-                {
-                  key: 'Recent transfers',
-                  val: transfers.length > 0 ? `${transfers.length}+` : '—',
-                  cls: 'font-condensed font-black text-lg text-green',
-                },
-                {
-                  key: 'Bridge interactions',
-                  val: bridgeCount > 0 ? bridgeCount.toString() : '—',
-                  cls: 'font-condensed font-black text-lg text-navy',
-                },
-              ].map(row => (
-                <div
-                  key={row.key}
-                  className="flex justify-between items-baseline py-1.5 border-b border-border last:border-0"
-                >
-                  <div className="font-mono text-[11px] text-dim">{row.key}</div>
-                  <div className={`font-mono ${row.cls}`}>{row.val}</div>
-                </div>
-              ))}
-            </div>
+        <div className="flex items-center gap-3">
+          <div className="flex items-center gap-1.5">
+            <span className="w-1.5 h-1.5 rounded-full bg-green inline-block animate-pulse"/>
+            <span className="font-mono text-[10px] text-dim tracking-wide">LIVE</span>
           </div>
-
-          <div className="bg-surface border border-border rounded-xl p-4">
-            <div className="flex items-center justify-between mb-3">
-              <div className="font-mono text-[11px] tracking-[0.12em] text-charcoal font-medium">
-                TOP DAPPS
-              </div>
-              <span className="font-mono text-[9px] bg-navy/10 text-navy border border-navy/30 px-1.5 py-0.5 rounded">
-                BY TXS
-              </span>
-            </div>
-            <div className="space-y-0">
-              {topDapps.length > 0 ? (
-                topDapps.map((c: any) => (
-                  <div
-                    key={c.address.hash}
-                    className="flex justify-between items-baseline py-1.5 border-b border-border last:border-0"
-                  >
-                    <div className="font-mono text-[11px] text-dim truncate max-w-30">
-                      {c.address.name || `${c.address.hash.slice(0, 6)}…`}
-                    </div>
-                    <div className="font-condensed font-black text-base text-navy">
-                      {DAPP_TYPES[c.address.name] || formatNumber(c.transaction_count)}
-                    </div>
-                  </div>
-                ))
-              ) : (
-                <div className="font-mono text-[10px] text-dim">Loading…</div>
-              )}
-            </div>
-          </div>
+          <Link
+            href="/dashboard"
+            className="font-mono text-[10px] tracking-[0.08em] bg-navy text-parchment px-4 py-2 rounded-lg hover:bg-[#2A4BAF] transition-colors"
+          >
+            OPEN DASHBOARD →
+          </Link>
         </div>
+      </nav>
 
-        <QueryPanel />
-      </main>
+      {/* Hero */}
+      <section className="flex-1 flex flex-col items-center justify-center px-6 py-16 text-center">
+        <div className="font-mono text-[9px] tracking-[0.22em] text-dim mb-4">
+          LITEFORGE ECOSYSTEM INTELLIGENCE
+        </div>
+        <h1 className="font-condensed font-black text-parchment leading-none tracking-tight mb-3"
+          style={{ fontSize: 'clamp(48px, 8vw, 80px)' }}>
+          WHERE THE<br />
+          <span className="text-silver">SILVER FLOWS</span>
+        </h1>
+        <p className="font-mono text-[11px] text-dim tracking-[0.06em] mb-8 leading-relaxed max-w-sm">
+          Live on-chain intelligence for LiteForge.<br />
+          Every transaction. Every wallet. Every move.
+        </p>
+        <div className="flex items-center gap-3 flex-wrap justify-center">
+          <Link
+            href="/dashboard"
+            className="flex items-center gap-2 bg-navy text-parchment font-mono text-[11px] tracking-[0.08em] px-6 py-3 rounded-lg hover:bg-[#2A4BAF] transition-colors"
+          >
+            OPEN DASHBOARD ↗
+          </Link>
+          <a
+            href="https://github.com/2TheMoom/vein"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="flex items-center gap-2 border border-[#2E3238] text-dim font-mono text-[11px] tracking-[0.08em] px-6 py-3 rounded-lg hover:border-navy hover:text-parchment transition-colors"
+          >
+            VIEW SOURCE ↗
+          </a>
+        </div>
+      </section>
 
-      <Footer />
+      {/* Live stats strip */}
+      <section className="border-t border-[#2A2D31] border-b border-b-[#2A2D31]">
+        <div className="grid grid-cols-2 sm:grid-cols-4 divide-x divide-[#2A2D31]">
+          {[
+            { label: 'TOTAL TRANSACTIONS', value: stats ? formatNumber(stats.total_transactions) : '—', accent: true },
+            { label: 'UNIQUE ADDRESSES', value: stats ? formatNumber(stats.total_addresses) : '—', accent: true },
+            { label: 'AVG BLOCK TIME', value: stats ? `${stats.average_block_time}ms` : '—', accent: false },
+            { label: 'AVG GAS (GWEI)', value: stats ? `${stats.gas_prices?.average}` : '—', accent: false },
+          ].map(stat => (
+            <div key={stat.label} className="px-6 py-5 text-center">
+              <div className={`font-condensed font-black text-3xl leading-none mb-1 ${stat.accent ? 'text-silver' : 'text-green'}`}>
+                {stat.value}
+              </div>
+              <div className="font-mono text-[9px] tracking-[0.14em] text-dim">{stat.label}</div>
+            </div>
+          ))}
+        </div>
+      </section>
 
-      <WeeklyReportModal open={showWeekly} onClose={() => setShowWeekly(false)} />
-      <ApiAccessModal open={showApi} onClose={() => setShowApi(false)} />
+      {/* Features */}
+      <section className="border-b border-[#2A2D31]">
+        <div className="grid grid-cols-1 sm:grid-cols-3 divide-y sm:divide-y-0 sm:divide-x divide-[#2A2D31]">
+          {[
+            {
+              icon: '◎',
+              title: 'LIVE CHAIN DATA',
+              body: 'Real-time stats pulled directly from the LiteForge Blockscout API. No middleman. No delay.',
+            },
+            {
+              icon: '▦',
+              title: 'ECOSYSTEM BREAKDOWN',
+              body: 'Method-level transaction classification, dApp rankings, zkLTC volume, and wallet growth over time.',
+            },
+            {
+              icon: '⊞',
+              title: 'WEEKLY REPORTS',
+              body: 'Auto-generated week-over-week summaries with deltas, trends, and top-performing dApps. Downloadable.',
+            },
+          ].map(f => (
+            <div key={f.title} className="px-6 py-6">
+              <div className="text-navy text-xl mb-3">{f.icon}</div>
+              <div className="font-condensed font-black text-base text-parchment mb-2 tracking-[0.02em]">{f.title}</div>
+              <div className="font-mono text-[10px] text-dim leading-relaxed tracking-[0.03em]">{f.body}</div>
+            </div>
+          ))}
+        </div>
+      </section>
+
+      {/* Footer */}
+      <footer className="px-6 py-4 flex items-center justify-between flex-wrap gap-3">
+        <div className="font-mono text-[10px] text-dim tracking-[0.06em]">
+          VEIN · LITEFORGE INTELLIGENCE · CHAIN ID 4441
+        </div>
+        <div className="font-mono text-[10px] text-dim">
+          Built by{' '}
+          <a
+            href="https://x.com/Olumi441"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="text-silver font-medium hover:text-parchment transition-colors"
+          >
+            Abu Olumi
+          </a>
+        </div>
+        <div className="font-mono text-[10px] text-dim">
+          Blockscout API · Not financial advice
+        </div>
+      </footer>
+
     </div>
   )
 }
