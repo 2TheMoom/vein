@@ -4,10 +4,11 @@ import { Header } from '@/components/Header'
 import { HeroCards } from '@/components/HeroCards'
 import { ChainStrip } from '@/components/ChainStrip'
 import { QueryPanel } from '@/components/QueryPanel'
-import { LiveFeed } from '@/components/LiveFeed'
 import { WeeklyReportModal } from '@/components/WeeklyReportModal'
 import { ApiAccessModal } from '@/components/ApiAccessModal'
 import { Footer } from '@/components/Footer'
+import { LiveFeed } from '@/components/LiveFeed'
+import { WalletSearch } from '@/components/WalletSearch'
 import {
   fetchStats,
   fetchTransactions,
@@ -21,15 +22,15 @@ import {
 const SYSTEM_WALLET = '0x0000000000000000000000000000000000000001'
 
 export default function Dashboard() {
-  const [stats, setStats] = useState<any>(null)
-  const [txData, setTxData] = useState<any[]>([])
-  const [transfers, setTransfers] = useState<any[]>([])
-  const [contracts, setContracts] = useState<any[]>([])
-  const [loading, setLoading] = useState(true)
+  const [stats, setStats]           = useState<any>(null)
+  const [txData, setTxData]         = useState<any[]>([])
+  const [transfers, setTransfers]   = useState<any[]>([])
+  const [contracts, setContracts]   = useState<any[]>([])
+  const [loading, setLoading]       = useState(true)
   const [lastUpdated, setLastUpdated] = useState('')
   const [showWeekly, setShowWeekly] = useState(false)
-  const [showApi, setShowApi] = useState(false)
-  const [period, setPeriod] = useState<'24H' | '7D' | '30D' | 'ALL'>('24H')
+  const [showApi, setShowApi]       = useState(false)
+  const [period, setPeriod]         = useState<'24H' | '7D' | '30D' | 'ALL'>('24H')
   const [periodTxCount, setPeriodTxCount] = useState<number | null>(null)
   const [periodLoading, setPeriodLoading] = useState(false)
 
@@ -96,7 +97,7 @@ export default function Dashboard() {
       pct: totalMethods > 0 ? Math.round((count / totalMethods) * 100) : 0,
     }))
 
-  const wzkltcMeta = transfers[0]?.token || null
+  const wzkltcMeta  = transfers[0]?.token || null
   const bridgeCount = transfers.filter((t: any) => t.type === 'token_minting').length
 
   const topDapps = [...contracts]
@@ -105,12 +106,12 @@ export default function Dashboard() {
     .slice(0, 5)
 
   const DAPP_TYPES: Record<string, string> = {
-    UniswapV2Router02: 'DEX',
-    LiteswapRouter: 'DEX',
-    CheckInNFT: 'NFT',
-    GlobalCounter: 'Tool',
-    AyniVault: 'Lend',
-    TWCloneFactory: 'Deploy',
+    UniswapV2Router02:  'DEX',
+    LiteswapRouter:     'DEX',
+    CheckInNFT:         'NFT',
+    GlobalCounter:      'Tool',
+    AyniVault:          'Lend',
+    TWCloneFactory:     'Deploy',
     LitClinicReception: 'Health',
   }
 
@@ -288,7 +289,13 @@ export default function Dashboard() {
           </div>
         </div>
 
+        {/* Wallet lookup */}
+        <WalletSearch />
+
+        {/* Live feed */}
         <LiveFeed />
+
+        {/* Query panel */}
         <QueryPanel />
       </main>
 
