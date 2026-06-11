@@ -9,6 +9,7 @@ import { ApiAccessModal } from '@/components/ApiAccessModal'
 import { Footer } from '@/components/Footer'
 import { LiveFeed } from '@/components/LiveFeed'
 import { WalletSearch } from '@/components/WalletSearch'
+import { HealthScore } from '@/components/HealthScore'
 import {
   fetchStats,
   fetchTransactions,
@@ -22,15 +23,15 @@ import {
 const SYSTEM_WALLET = '0x0000000000000000000000000000000000000001'
 
 export default function Dashboard() {
-  const [stats, setStats]           = useState<any>(null)
-  const [txData, setTxData]         = useState<any[]>([])
-  const [transfers, setTransfers]   = useState<any[]>([])
-  const [contracts, setContracts]   = useState<any[]>([])
-  const [loading, setLoading]       = useState(true)
+  const [stats, setStats]             = useState<any>(null)
+  const [txData, setTxData]           = useState<any[]>([])
+  const [transfers, setTransfers]     = useState<any[]>([])
+  const [contracts, setContracts]     = useState<any[]>([])
+  const [loading, setLoading]         = useState(true)
   const [lastUpdated, setLastUpdated] = useState('')
-  const [showWeekly, setShowWeekly] = useState(false)
-  const [showApi, setShowApi]       = useState(false)
-  const [period, setPeriod]         = useState<'24H' | '7D' | '30D' | 'ALL'>('24H')
+  const [showWeekly, setShowWeekly]   = useState(false)
+  const [showApi, setShowApi]         = useState(false)
+  const [period, setPeriod]           = useState<'24H' | '7D' | '30D' | 'ALL'>('24H')
   const [periodTxCount, setPeriodTxCount] = useState<number | null>(null)
   const [periodLoading, setPeriodLoading] = useState(false)
 
@@ -82,6 +83,7 @@ export default function Dashboard() {
     if (stats) fetchPeriodCount(period)
   }, [period, stats, fetchPeriodCount])
 
+  // Method breakdown
   const methodCounts: Record<string, number> = {}
   for (const tx of txData) {
     const cat = classifyMethod(tx.method)
@@ -97,22 +99,24 @@ export default function Dashboard() {
       pct: totalMethods > 0 ? Math.round((count / totalMethods) * 100) : 0,
     }))
 
+  // zkLTC data
   const wzkltcMeta  = transfers[0]?.token || null
   const bridgeCount = transfers.filter((t: any) => t.type === 'token_minting').length
 
+  // Top dApps
   const topDapps = [...contracts]
     .filter((c: any) => c.transaction_count > 0)
     .sort((a: any, b: any) => (b.transaction_count || 0) - (a.transaction_count || 0))
     .slice(0, 5)
 
   const DAPP_TYPES: Record<string, string> = {
-    UniswapV2Router02:  'DEX',
-    LiteswapRouter:     'DEX',
-    CheckInNFT:         'NFT',
-    GlobalCounter:      'Tool',
-    AyniVault:          'Lend',
-    TWCloneFactory:     'Deploy',
-    LitClinicReception: 'Health',
+    UniswapV2Router02:   'DEX',
+    LiteswapRouter:      'DEX',
+    CheckInNFT:          'NFT',
+    GlobalCounter:       'Tool',
+    AyniVault:           'Lend',
+    TWCloneFactory:      'Deploy',
+    LitClinicReception:  'Health',
   }
 
   const displayTxCount = periodLoading
@@ -148,13 +152,28 @@ export default function Dashboard() {
 
         {stats && (
           <>
-            <HeroCards
-              totalTxs={stats.total_transactions}
-              totalAddresses={stats.total_addresses}
-              avgBlockTime={stats.average_block_time}
-              avgGasPrice={stats.gas_prices?.average ?? 0}
-              txsToday={stats.transactions_today}
-            />
+            {/* Health score + hero cards */}
+            <div className="grid grid-cols-1 md:grid-cols-5 gap-2.5">
+              <div className="md:col-span-1">
+                <HealthScore
+                  avgBlockTimeMs={stats.average_block_time}
+                  avgGasPrice={stats.gas_prices?.average ?? 0}
+                  utilization={stats.network_utilization_percentage ?? 0}
+                  txsToday={parseInt(stats.transactions_today)}
+                  totalBlocks={parseInt(stats.total_blocks)}
+                />
+              </div>
+              <div className="md:col-span-4">
+                <HeroCards
+                  totalTxs={stats.total_transactions}
+                  totalAddresses={stats.total_addresses}
+                  avgBlockTime={stats.average_block_time}
+                  avgGasPrice={stats.gas_prices?.average ?? 0}
+                  txsToday={stats.transactions_today}
+                />
+              </div>
+            </div>
+
             <ChainStrip
               slowGas={stats.gas_prices?.slow ?? 0}
               avgGas={stats.gas_prices?.average ?? 0}
@@ -166,6 +185,7 @@ export default function Dashboard() {
           </>
         )}
 
+        {/* Activity + Method breakdown */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-2.5">
           <div className="bg-surface border border-border rounded-xl p-4">
             <div className="flex items-center justify-between mb-3">
@@ -245,6 +265,7 @@ export default function Dashboard() {
           </div>
         </div>
 
+        {/* zkLTC + Top dApps */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-2.5">
           <div className="md:col-span-2 bg-surface border border-border rounded-xl p-4">
             <div className="flex items-center justify-between mb-3">
