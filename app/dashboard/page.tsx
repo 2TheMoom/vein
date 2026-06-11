@@ -100,7 +100,11 @@ export default function Dashboard() {
     }))
 
   // zkLTC data
-  const wzkltcMeta  = transfers[0]?.token || null
+  const wzkltcMeta = transfers.find(
+    (t: any) => t.token?.address?.toLowerCase() === WZKLTC_ADDRESS.toLowerCase()
+  )?.token || transfers.find(
+    (t: any) => t.token?.symbol === 'wzkLTC' || t.token?.symbol === 'WzkLTC'
+  )?.token || null
   const bridgeCount = transfers.filter((t: any) => t.type === 'token_minting').length
 
   // Top dApps

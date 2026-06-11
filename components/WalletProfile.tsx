@@ -238,7 +238,7 @@ export function WalletProfile({ address }: { address: string }) {
               <div className="mt-3 pt-3 border-t border-border flex items-center gap-2">
                 <div className="font-mono text-[9px] text-dim">Share:</div>
                 <div className="font-mono text-[9px] text-navy break-all">
-                  vein.vercel.app/wallet/{address}
+                  vein-lilac.vercel.app/wallet/{address}
                 </div>
               </div>
             </div>

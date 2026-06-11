@@ -4,12 +4,12 @@ import { IconKey, IconX } from '@tabler/icons-react'
 import { PAYMENT_DESTINATION, QUERY_PRICE_ZKLTC, FREE_QUERY_LIMIT } from '@/lib/blockscout'
 
 const ENDPOINTS = [
-  { method: 'GET', url: 'vein.vercel.app/api/intelligence/stats?wallet=YOUR_WALLET', desc: 'Full ecosystem snapshot — transactions, addresses, gas, block time' },
-  { method: 'GET', url: 'vein.vercel.app/api/intelligence/activity?wallet=YOUR_WALLET&period=24h', desc: 'Transaction activity — period: 24h · 7d · 30d' },
-  { method: 'GET', url: 'vein.vercel.app/api/intelligence/dapps?wallet=YOUR_WALLET', desc: 'Top dApp rankings by transaction count' },
-  { method: 'GET', url: 'vein.vercel.app/api/intelligence/zkltc?wallet=YOUR_WALLET', desc: 'zkLTC · wzkLTC volume, holders, bridge interactions' },
-  { method: 'GET', url: 'vein.vercel.app/api/intelligence/report/weekly?wallet=YOUR_WALLET', desc: 'Latest weekly intelligence report with deltas' },
-  { method: 'POST', url: 'vein.vercel.app/api/intelligence/confirm/:queryId', desc: 'Confirm payment · Body: {"wallet": "0xYOURS", "txId": "0xTX_HASH"}' },
+  { method: 'GET', url: 'vein-lilac.vercel.app/api/intelligence/stats?wallet=YOUR_WALLET', desc: 'Full ecosystem snapshot — transactions, addresses, gas, block time' },
+  { method: 'GET', url: 'vein-lilac.vercel.app/api/intelligence/activity?wallet=YOUR_WALLET&period=24h', desc: 'Transaction activity — period: 24h · 7d · 30d' },
+  { method: 'GET', url: 'vein-lilac.vercel.app/api/intelligence/dapps?wallet=YOUR_WALLET', desc: 'Top dApp rankings by transaction count' },
+  { method: 'GET', url: 'vein-lilac.vercel.app/api/intelligence/zkltc?wallet=YOUR_WALLET', desc: 'zkLTC · wzkLTC volume, holders, bridge interactions' },
+  { method: 'GET', url: 'vein-lilac.vercel.app/api/intelligence/report/weekly?wallet=YOUR_WALLET', desc: 'Latest weekly intelligence report with deltas' },
+  { method: 'POST', url: 'vein-lilac.vercel.app/api/intelligence/confirm/:queryId', desc: 'Confirm payment · Body: {"wallet": "0xYOURS", "txId": "0xTX_HASH"}' },
 ]
 
 const STEPS = [
@@ -147,7 +147,7 @@ export function ApiAccessModal({ open, onClose }: ApiAccessModalProps) {
             <div className="bg-charcoal rounded-lg p-3">
               <pre className="font-mono text-[9px] text-[#9A9A9F] leading-relaxed whitespace-pre-wrap">{`// Ecosystem snapshot
 const res = await fetch(
-  'https://vein.vercel.app/api/intelligence/stats' +
+  'https://vein-lilac.vercel.app/api/intelligence/stats' +
   '?wallet=0xYOUR_WALLET_ADDRESS'
 );
 const data = await res.json();

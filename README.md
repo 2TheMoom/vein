@@ -4,7 +4,7 @@
 
 **Vein** is a free, open-source ecosystem dashboard and intelligence API built on top of [LiteForge](https://testnet.litvm.com/) — Litecoin's first EVM rollup powered by Arbitrum Orbit, BitcoinOS, and Espresso.
 
-Live at: **[vein.vercel.app](https://vein.vercel.app)**
+Live at: **[vein.vercel.app](https://vein-lilac.vercel.app)**
 
 ---
 
@@ -25,7 +25,7 @@ Live at: **[vein.vercel.app](https://vein.vercel.app)**
 - Activity breakdown by method type
 - Top dApp and most used method
 - Recent transaction history
-- Shareable URL — `vein.vercel.app/wallet/0x...`
+- Shareable URL — `vein-lilac.vercel.app/wallet/0x...`
 
 ### Weekly Reports
 - Auto-generated every 7 days after deployment via Vercel Cron
@@ -77,7 +77,7 @@ POST /api/intelligence/confirm/:queryId
 
 ```js
 const res = await fetch(
-  'https://vein.vercel.app/api/intelligence/stats' +
+  'https://vein-lilac.vercel.app/api/intelligence/stats' +
   '?wallet=0xYOUR_WALLET_ADDRESS'
 )
 const data = await res.json()
