@@ -25,19 +25,19 @@ function shortAddr(addr: string): string {
 
 function timeAgo(iso: string): string {
   const diff = Math.floor((Date.now() - new Date(iso).getTime()) / 1000)
-  if (diff < 60)   return `${diff}s ago`
-  if (diff < 3600) return `${Math.floor(diff / 60)}m ago`
-  return `${Math.floor(diff / 3600)}h ago`
+  if (diff < 60)   return `${diff}s`
+  if (diff < 3600) return `${Math.floor(diff / 60)}m`
+  return `${Math.floor(diff / 3600)}h`
 }
 
 function methodColor(method: string | null): string {
   if (!method) return 'text-dim'
   const m = method.toLowerCase()
-  if (m.includes('swap') || m.includes('exchange'))                        return 'text-navy'
-  if (m.includes('mint') || m.includes('lazymint'))                        return 'text-green'
+  if (m.includes('swap') || m.includes('exchange'))                              return 'text-navy'
+  if (m.includes('mint') || m.includes('lazymint'))                              return 'text-green'
   if (m.includes('deposit') || m.includes('addliquidity') || m.includes('stake')) return 'text-green'
-  if (m.includes('bridge') || m.includes('relay'))                         return 'text-crimson'
-  if (m.includes('checkin') || m.includes('increment'))                    return 'text-silver'
+  if (m.includes('bridge') || m.includes('relay'))                               return 'text-crimson'
+  if (m.includes('checkin') || m.includes('increment'))                          return 'text-silver'
   return 'text-dim'
 }
 
@@ -70,8 +70,8 @@ function formatValue(value: string): string | null {
   if (!value || value === '0') return null
   const val = parseInt(value) / 1e18
   if (val < 0.001) return null
-  if (val >= 1000) return `${(val / 1000).toFixed(2)}K zkLTC`
-  return `${val.toFixed(4)} zkLTC`
+  if (val >= 1000) return `${(val / 1000).toFixed(2)}K`
+  return `${val.toFixed(3)}`
 }
 
 function parseTx(tx: any): FeedTx {
@@ -110,16 +110,9 @@ export function LiveFeed() {
         .map(parseTx)
 
       const fresh = incoming.filter(tx => !seenRef.current.has(tx.hash))
-
       if (fresh.length > 0) {
         fresh.forEach(tx => seenRef.current.add(tx.hash))
-
-        // Mark only the last fresh tx as new for fadeIn
-        const tagged = fresh.map((tx, i) => ({
-          ...tx,
-          isNew: i === fresh.length - 1,
-        }))
-
+        const tagged = fresh.map((tx, i) => ({ ...tx, isNew: i === fresh.length - 1 }))
         setTxs(prev => {
           const combined = [...tagged, ...prev.map(t => ({ ...t, isNew: false }))]
           return combined.slice(0, MAX_TXS)
@@ -138,7 +131,6 @@ export function LiveFeed() {
     return () => clearInterval(interval)
   }, [])
 
-  // Tick every second to keep timestamps fresh
   const [, setTick] = useState(0)
   useEffect(() => {
     const t = setInterval(() => setTick(n => n + 1), 1000)
@@ -147,15 +139,12 @@ export function LiveFeed() {
 
   return (
     <>
-      {/* fadeIn keyframe injected once */}
       <style>{`
         @keyframes vein-fadeIn {
           from { opacity: 0; transform: translateY(-6px); }
           to   { opacity: 1; transform: translateY(0); }
         }
-        .vein-new {
-          animation: vein-fadeIn 0.35s ease forwards;
-        }
+        .vein-new { animation: vein-fadeIn 0.35s ease forwards; }
       `}</style>
 
       <div className="bg-surface border border-border rounded-xl p-4 mb-2.5">
@@ -171,14 +160,20 @@ export function LiveFeed() {
           </div>
         </div>
 
-        {/* Column headers */}
-        <div className="grid grid-cols-[72px_1fr_1fr_88px_56px] gap-2 pb-1.5 border-b border-border mb-1">
+        {/* Desktop columns */}
+        <div className="hidden sm:grid grid-cols-[72px_1fr_1fr_88px_56px] gap-2 pb-1.5 border-b border-border mb-1">
           {['METHOD', 'FROM', 'TO', 'VALUE', 'AGE'].map(h => (
             <div key={h} className="font-mono text-[8px] tracking-[0.14em] text-dim">{h}</div>
           ))}
         </div>
 
-        {/* Loading skeletons */}
+        {/* Mobile columns */}
+        <div className="grid sm:hidden grid-cols-[72px_1fr_40px] gap-2 pb-1.5 border-b border-border mb-1">
+          {['METHOD', 'FROM / TO', 'AGE'].map(h => (
+            <div key={h} className="font-mono text-[8px] tracking-[0.14em] text-dim">{h}</div>
+          ))}
+        </div>
+
         {loading && (
           <div className="space-y-2 mt-2">
             {Array.from({ length: 6 }).map((_, i) => (
@@ -187,14 +182,12 @@ export function LiveFeed() {
           </div>
         )}
 
-        {/* Empty state */}
         {!loading && txs.length === 0 && (
           <div className="font-mono text-[10px] text-dim text-center py-6">
             Waiting for transactions…
           </div>
         )}
 
-        {/* Transaction rows */}
         {!loading && txs.length > 0 && (
           <div className="space-y-0 overflow-hidden">
             {txs.map((tx, idx) => {
@@ -205,26 +198,43 @@ export function LiveFeed() {
                   href={`https://liteforge.explorer.caldera.xyz/tx/${tx.hash}`}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className={`grid grid-cols-[72px_1fr_1fr_88px_56px] gap-2 py-1.5 border-b border-border/40 last:border-0 hover:bg-parchment rounded transition-colors items-center group ${tx.isNew ? 'vein-new' : ''}`}
+                  className={`block hover:bg-parchment rounded transition-colors group border-b border-border/40 last:border-0 ${tx.isNew ? 'vein-new' : ''}`}
                   style={{ opacity: Math.max(0.35, 1 - idx * 0.035) }}
                 >
-                  <div className={`font-mono text-[9px] font-medium tracking-[0.04em] truncate ${methodColor(tx.method)}`}>
-                    {methodLabel(tx.method, tx.types)}
+                  {/* Desktop row */}
+                  <div className="hidden sm:grid grid-cols-[72px_1fr_1fr_88px_56px] gap-2 py-1.5 items-center">
+                    <div className={`font-mono text-[9px] font-medium tracking-[0.04em] truncate ${methodColor(tx.method)}`}>
+                      {methodLabel(tx.method, tx.types)}
+                    </div>
+                    <div className="font-mono text-[9px] text-dim truncate">{shortAddr(tx.from)}</div>
+                    <div className="font-mono text-[9px] truncate">
+                      {tx.toName
+                        ? <span className="text-charcoal">{tx.toName}</span>
+                        : <span className="text-dim">{tx.to ? shortAddr(tx.to) : '—'}</span>
+                      }
+                    </div>
+                    <div className="font-mono text-[9px] text-dim truncate">
+                      {val ? `${val} zkLTC` : '—'}
+                    </div>
+                    <div className="font-mono text-[9px] text-dim text-right group-hover:text-navy transition-colors">
+                      {timeAgo(tx.timestamp)}
+                    </div>
                   </div>
-                  <div className="font-mono text-[9px] text-dim truncate">
-                    {shortAddr(tx.from)}
-                  </div>
-                  <div className="font-mono text-[9px] truncate">
-                    {tx.toName
-                      ? <span className="text-charcoal">{tx.toName}</span>
-                      : <span className="text-dim">{tx.to ? shortAddr(tx.to) : '—'}</span>
-                    }
-                  </div>
-                  <div className="font-mono text-[9px] text-dim truncate">
-                    {val || '—'}
-                  </div>
-                  <div className="font-mono text-[9px] text-dim text-right group-hover:text-navy transition-colors">
-                    {timeAgo(tx.timestamp)}
+
+                  {/* Mobile row — 3 columns */}
+                  <div className="grid sm:hidden grid-cols-[72px_1fr_40px] gap-2 py-1.5 items-center">
+                    <div className={`font-mono text-[9px] font-medium tracking-[0.04em] truncate ${methodColor(tx.method)}`}>
+                      {methodLabel(tx.method, tx.types)}
+                    </div>
+                    <div className="font-mono text-[9px] text-dim truncate">
+                      {shortAddr(tx.from)}
+                      {tx.to && (
+                        <span className="text-muted"> → {tx.toName || shortAddr(tx.to)}</span>
+                      )}
+                    </div>
+                    <div className="font-mono text-[9px] text-dim text-right group-hover:text-navy transition-colors">
+                      {timeAgo(tx.timestamp)}
+                    </div>
                   </div>
                 </a>
               )
