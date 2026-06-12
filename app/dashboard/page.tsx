@@ -83,7 +83,6 @@ export default function Dashboard() {
     if (stats) fetchPeriodCount(period)
   }, [period, stats, fetchPeriodCount])
 
-  // Method breakdown
   const methodCounts: Record<string, number> = {}
   for (const tx of txData) {
     const cat = classifyMethod(tx.method)
@@ -99,7 +98,6 @@ export default function Dashboard() {
       pct: totalMethods > 0 ? Math.round((count / totalMethods) * 100) : 0,
     }))
 
-  // zkLTC data
   const wzkltcMeta = transfers.find(
     (t: any) => t.token?.address?.toLowerCase() === WZKLTC_ADDRESS.toLowerCase()
   )?.token || transfers.find(
@@ -107,7 +105,6 @@ export default function Dashboard() {
   )?.token || null
   const bridgeCount = transfers.filter((t: any) => t.type === 'token_minting').length
 
-  // Top dApps
   const topDapps = [...contracts]
     .filter((c: any) => c.transaction_count > 0)
     .sort((a: any, b: any) => (b.transaction_count || 0) - (a.transaction_count || 0))
@@ -143,7 +140,7 @@ export default function Dashboard() {
   }
 
   return (
-    <div className="min-h-screen bg-parchment font-mono flex flex-col">
+    <div className="min-h-screen w-full max-w-full overflow-x-hidden bg-parchment font-mono flex flex-col">
       <Header
         blockNumber={stats?.total_blocks}
         lastUpdated={lastUpdated}
@@ -151,12 +148,11 @@ export default function Dashboard() {
         onApiAccess={() => setShowApi(true)}
       />
 
-      <main className="flex-1 px-4 sm:px-6 py-5 space-y-2.5">
+      <main className="flex-1 w-full max-w-full overflow-x-hidden px-3 sm:px-6 py-5 space-y-2.5">
         <div className="font-mono text-[10px] tracking-[0.18em] text-dim">ECOSYSTEM HEALTH</div>
 
         {stats && (
           <>
-            {/* Health score + hero cards */}
             <div className="grid grid-cols-1 md:grid-cols-5 gap-2.5">
               <div className="md:col-span-1">
                 <HealthScore
@@ -189,9 +185,8 @@ export default function Dashboard() {
           </>
         )}
 
-        {/* Activity + Method breakdown */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-2.5">
-          <div className="bg-surface border border-border rounded-xl p-4">
+          <div className="bg-surface border border-border rounded-xl p-4 min-w-0">
             <div className="flex items-center justify-between mb-3">
               <div className="font-mono text-[11px] tracking-[0.12em] text-charcoal font-medium">
                 TRANSACTION ACTIVITY
@@ -242,7 +237,7 @@ export default function Dashboard() {
             </div>
           </div>
 
-          <div className="bg-surface border border-border rounded-xl p-4">
+          <div className="bg-surface border border-border rounded-xl p-4 min-w-0">
             <div className="flex items-center justify-between mb-3">
               <div className="font-mono text-[11px] tracking-[0.12em] text-charcoal font-medium">METHOD BREAKDOWN</div>
               <span className="font-mono text-[9px] bg-navy/10 text-navy border border-navy/30 px-1.5 py-0.5 rounded">LIVE</span>
@@ -251,7 +246,7 @@ export default function Dashboard() {
               {methodRows.length > 0 ? methodRows.map(({ method, pct }) => (
                 <div key={method} className="flex items-center gap-2">
                   <div className="font-mono text-[10px] text-dim w-16 text-right shrink-0">{method}</div>
-                  <div className="flex-1 h-1.5 bg-[#E0DDD6] rounded-full overflow-hidden">
+                  <div className="flex-1 h-1.5 bg-[#E0DDD6] rounded-full overflow-hidden min-w-0">
                     <div
                       className="h-full rounded-full"
                       style={{
@@ -269,9 +264,8 @@ export default function Dashboard() {
           </div>
         </div>
 
-        {/* zkLTC + Top dApps */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-2.5">
-          <div className="md:col-span-2 bg-surface border border-border rounded-xl p-4">
+          <div className="md:col-span-2 bg-surface border border-border rounded-xl p-4 min-w-0">
             <div className="flex items-center justify-between mb-3">
               <div className="font-mono text-[11px] tracking-[0.12em] text-charcoal font-medium">zkLTC / wzkLTC ACTIVITY</div>
               <span className="font-mono text-[9px] bg-green/20 text-green border border-green/40 px-1.5 py-0.5 rounded">LIVE</span>
@@ -292,7 +286,7 @@ export default function Dashboard() {
             </div>
           </div>
 
-          <div className="bg-surface border border-border rounded-xl p-4">
+          <div className="bg-surface border border-border rounded-xl p-4 min-w-0">
             <div className="flex items-center justify-between mb-3">
               <div className="font-mono text-[11px] tracking-[0.12em] text-charcoal font-medium">TOP DAPPS</div>
               <span className="font-mono text-[9px] bg-navy/10 text-navy border border-navy/30 px-1.5 py-0.5 rounded">BY TXS</span>
@@ -314,13 +308,8 @@ export default function Dashboard() {
           </div>
         </div>
 
-        {/* Wallet lookup */}
         <WalletSearch />
-
-        {/* Live feed */}
         <LiveFeed />
-
-        {/* Query panel */}
         <QueryPanel />
       </main>
 
