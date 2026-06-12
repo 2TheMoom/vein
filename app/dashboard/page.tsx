@@ -15,6 +15,7 @@ import {
   fetchTransactions,
   fetchTokenTransfers,
   fetchSmartContracts,
+  fetchTokenInfo,
   classifyMethod,
   formatNumber,
   WZKLTC_ADDRESS,
@@ -27,6 +28,7 @@ export default function Dashboard() {
   const [txData, setTxData]           = useState<any[]>([])
   const [transfers, setTransfers]     = useState<any[]>([])
   const [contracts, setContracts]     = useState<any[]>([])
+  const [wzkltcInfo, setWzkltcInfo]   = useState<any>(null)
   const [loading, setLoading]         = useState(true)
   const [lastUpdated, setLastUpdated] = useState('')
   const [showWeekly, setShowWeekly]   = useState(false)
@@ -37,16 +39,18 @@ export default function Dashboard() {
 
   const load = useCallback(async () => {
     try {
-      const [s, tx, tr, ct] = await Promise.all([
+      const [s, tx, tr, ct, wzkltc] = await Promise.all([
         fetchStats(),
         fetchTransactions(),
         fetchTokenTransfers(WZKLTC_ADDRESS),
         fetchSmartContracts(),
+        fetchTokenInfo(WZKLTC_ADDRESS),
       ])
       setStats(s)
       setTxData(tx.items || [])
       setTransfers(tr.items || [])
       setContracts(ct.items || [])
+      setWzkltcInfo(wzkltc)
       setLastUpdated(new Date().toLocaleTimeString())
     } catch (e) {
       console.error('Fetch error', e)
@@ -98,11 +102,6 @@ export default function Dashboard() {
       pct: totalMethods > 0 ? Math.round((count / totalMethods) * 100) : 0,
     }))
 
-  const wzkltcMeta = transfers.find(
-    (t: any) => t.token?.address?.toLowerCase() === WZKLTC_ADDRESS.toLowerCase()
-  )?.token || transfers.find(
-    (t: any) => t.token?.symbol === 'wzkLTC' || t.token?.symbol === 'WzkLTC'
-  )?.token || null
   const bridgeCount = transfers.filter((t: any) => t.type === 'token_minting').length
 
   const topDapps = [...contracts]
@@ -267,16 +266,42 @@ export default function Dashboard() {
         <div className="grid grid-cols-1 md:grid-cols-3 gap-2.5">
           <div className="md:col-span-2 bg-surface border border-border rounded-xl p-4 min-w-0">
             <div className="flex items-center justify-between mb-3">
-              <div className="font-mono text-[11px] tracking-[0.12em] text-charcoal font-medium">zkLTC / wzkLTC ACTIVITY</div>
+              <div className="font-mono text-[11px] tracking-[0.12em] text-charcoal font-medium">
+                zkLTC / wzkLTC ACTIVITY
+              </div>
               <span className="font-mono text-[9px] bg-green/20 text-green border border-green/40 px-1.5 py-0.5 rounded">LIVE</span>
             </div>
             <div className="space-y-0">
               {[
-                { key: 'wzkLTC contract', val: `${WZKLTC_ADDRESS.slice(0, 6)}…${WZKLTC_ADDRESS.slice(-4)}`, cls: 'text-dim text-[10px]' },
-                { key: 'Total holders', val: wzkltcMeta?.holders ? parseInt(wzkltcMeta.holders).toLocaleString() : '—', cls: 'font-condensed font-black text-lg text-navy' },
-                { key: 'Total supply', val: wzkltcMeta?.total_supply ? `${formatNumber(parseInt(wzkltcMeta.total_supply) / 1e18)} wzkLTC` : '—', cls: 'font-condensed font-black text-lg' },
-                { key: 'Recent transfers', val: transfers.length > 0 ? `${transfers.length}+` : '—', cls: 'font-condensed font-black text-lg text-green' },
-                { key: 'Bridge interactions', val: bridgeCount > 0 ? bridgeCount.toString() : '—', cls: 'font-condensed font-black text-lg text-navy' },
+                {
+                  key: 'wzkLTC contract',
+                  val: `${WZKLTC_ADDRESS.slice(0, 6)}…${WZKLTC_ADDRESS.slice(-4)}`,
+                  cls: 'text-dim text-[10px]',
+                },
+                {
+                  key: 'Total holders',
+                  val: wzkltcInfo?.holders
+                    ? parseInt(wzkltcInfo.holders).toLocaleString()
+                    : '—',
+                  cls: 'font-condensed font-black text-lg text-navy',
+                },
+                {
+                  key: 'Total supply',
+                  val: wzkltcInfo?.total_supply && wzkltcInfo?.decimals
+                    ? `${formatNumber(parseInt(wzkltcInfo.total_supply) / Math.pow(10, parseInt(wzkltcInfo.decimals)))} wzkLTC`
+                    : '—',
+                  cls: 'font-condensed font-black text-lg',
+                },
+                {
+                  key: 'Recent transfers',
+                  val: transfers.length > 0 ? `${transfers.length}+` : '—',
+                  cls: 'font-condensed font-black text-lg text-green',
+                },
+                {
+                  key: 'Bridge interactions',
+                  val: bridgeCount > 0 ? bridgeCount.toString() : '—',
+                  cls: 'font-condensed font-black text-lg text-navy',
+                },
               ].map(row => (
                 <div key={row.key} className="flex justify-between items-baseline py-1.5 border-b border-border last:border-0">
                   <div className="font-mono text-[11px] text-dim">{row.key}</div>

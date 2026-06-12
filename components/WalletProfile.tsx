@@ -39,10 +39,10 @@ function formatBalance(wei: string): string {
 
 function methodColor(method: string): string {
   const m = method.toLowerCase()
-  if (m === 'swap')     return 'text-navy'
-  if (m === 'mint')     return 'text-green'
-  if (m === 'deposit')  return 'text-green'
-  if (m === 'bridge')   return 'text-crimson'
+  if (m === 'swap')    return 'text-navy'
+  if (m === 'mint')    return 'text-green'
+  if (m === 'deposit') return 'text-green'
+  if (m === 'bridge')  return 'text-crimson'
   return 'text-dim'
 }
 
@@ -58,9 +58,10 @@ export function WalletProfile({ address }: { address: string }) {
         setLoading(true)
         setError(null)
 
-        const [addrRes, txRes] = await Promise.all([
+        const [addrRes, txRes, countersRes] = await Promise.all([
           fetch(`/api/chain?path=/addresses/${address}`),
-          fetch(`/api/chain?path=/addresses/${address}/transactions?limit=50`),
+          fetch(`/api/chain?path=/addresses/${address}/transactions%3Flimit%3D50`),
+          fetch(`/api/chain?path=/addresses/${address}/counters`),
         ])
 
         if (!addrRes.ok) {
@@ -68,22 +69,21 @@ export function WalletProfile({ address }: { address: string }) {
           return
         }
 
-        const addrData = await addrRes.json()
-        const txData   = txRes.ok ? await txRes.json() : { items: [] }
-        const txs      = txData.items || []
+        const addrData     = await addrRes.json()
+        const txData       = txRes.ok ? await txRes.json() : { items: [] }
+        const countersData = countersRes.ok ? await countersRes.json() : {}
+        const txs          = txData.items || []
 
-        // Method breakdown
+        // Method breakdown — only outbound txs
         const methodCounts: Record<string, number> = {}
         const dappCounts:   Record<string, { name: string | null; count: number }> = {}
 
         for (const tx of txs) {
-          // Only count txs sent by this wallet
           if (tx.from?.hash?.toLowerCase() !== address.toLowerCase()) continue
 
           const cat = classifyMethod(tx.method)
           methodCounts[cat] = (methodCounts[cat] || 0) + 1
 
-          // Track dApp interactions
           if (tx.to?.hash && tx.to?.is_contract) {
             const addr = tx.to.hash.toLowerCase()
             if (!dappCounts[addr]) {
@@ -93,28 +93,32 @@ export function WalletProfile({ address }: { address: string }) {
           }
         }
 
-        // Top method
         const topMethod = Object.entries(methodCounts)
           .sort((a, b) => b[1] - a[1])[0]?.[0] || '—'
 
-        // Top dApp
         const topDappEntry = Object.entries(dappCounts)
           .sort((a, b) => b[1].count - a[1].count)[0]
-        const topDapp     = topDappEntry?.[1].name || null
-        const topDappAddr = topDappEntry?.[0] || null
+        const topDapp      = topDappEntry?.[1].name || null
+        const topDappAddr  = topDappEntry?.[0] || null
 
-        // First seen / last active from tx timestamps
         const timestamps = txs
           .map((tx: any) => tx.timestamp)
           .filter(Boolean)
           .sort()
-        const firstSeen   = timestamps[0] || null
-        const lastActive  = timestamps[timestamps.length - 1] || null
+        const firstSeen  = timestamps[0] || null
+        const lastActive = timestamps[timestamps.length - 1] || null
+
+        // Get real tx count from counters endpoint
+        const txCount =
+          parseInt(countersData?.transactions_count) ||
+          parseInt(countersData?.transaction_count)  ||
+          parseInt(countersData?.txs_count)          ||
+          txs.length
 
         setData({
           address,
-          balance:        addrData.coin_balance || '0',
-          txCount:        addrData.transaction_count || txs.length,
+          balance:         addrData.coin_balance || '0',
+          txCount,
           firstSeen,
           lastActive,
           topMethod,
@@ -148,7 +152,7 @@ export function WalletProfile({ address }: { address: string }) {
     <div className="min-h-screen bg-parchment font-mono flex flex-col">
 
       {/* Header */}
-      <header className="bg-charcoal px-6 py-4 border-b border-[#2A2D31]">
+      <header className="bg-charcoal px-4 sm:px-6 py-4 border-b border-[#2A2D31]">
         <div className="flex items-center justify-between">
           <Link href="/" className="flex items-center gap-3 group">
             <div className="w-8 h-8 bg-rock rounded-lg border border-[#2E3238] flex items-center justify-center shrink-0 group-hover:border-silver transition-colors">
@@ -207,16 +211,16 @@ export function WalletProfile({ address }: { address: string }) {
             {/* Address card */}
             <div className="bg-surface border border-border rounded-xl p-4">
               <div className="flex items-start justify-between gap-3 flex-wrap">
-                <div>
+                <div className="min-w-0">
                   <div className="font-mono text-[9px] tracking-[0.16em] text-dim mb-1">
                     {data.isContract ? 'CONTRACT' : 'WALLET'} · LITEFORGE
                   </div>
                   <div className="font-condensed font-black text-2xl text-charcoal leading-none mb-1">
                     {data.contractName || shortAddr(address)}
                   </div>
-                  <div className="font-mono text-[10px] text-dim break-all">{address}</div>
+                  <div className="font-mono text-[9px] text-dim break-all">{address}</div>
                 </div>
-                <div className="flex gap-2 flex-shrink-0">
+                <div className="flex gap-2 shrink-0">
                   <button
                     onClick={copyAddress}
                     className="font-mono text-[9px] tracking-[0.08em] border border-muted text-dim px-3 py-1.5 rounded hover:border-navy hover:text-navy transition-colors"
@@ -234,8 +238,8 @@ export function WalletProfile({ address }: { address: string }) {
                 </div>
               </div>
 
-              {/* Share prompt */}
-              <div className="mt-3 pt-3 border-t border-border flex items-center gap-2">
+              {/* Share URL */}
+              <div className="mt-3 pt-3 border-t border-border flex items-center gap-2 flex-wrap">
                 <div className="font-mono text-[9px] text-dim">Share:</div>
                 <div className="font-mono text-[9px] text-navy break-all">
                   vein-lilac.vercel.app/wallet/{address}
@@ -246,17 +250,17 @@ export function WalletProfile({ address }: { address: string }) {
             {/* Stats grid */}
             <div className="grid grid-cols-2 md:grid-cols-4 gap-2.5">
               {[
-                { label: 'TOTAL TXS', value: formatNumber(data.txCount), accent: 'navy' },
+                { label: 'TOTAL TXS',     value: formatNumber(data.txCount),  accent: 'navy'  },
                 { label: 'zkLTC BALANCE', value: formatBalance(data.balance), accent: 'green' },
-                { label: 'FIRST SEEN', value: formatDate(data.firstSeen), accent: null },
-                { label: 'LAST ACTIVE', value: formatDate(data.lastActive), accent: null },
+                { label: 'FIRST SEEN',    value: formatDate(data.firstSeen),  accent: null    },
+                { label: 'LAST ACTIVE',   value: formatDate(data.lastActive), accent: null    },
               ].map(stat => (
                 <div key={stat.label} className="bg-surface border border-border rounded-xl p-3">
                   <div className="font-mono text-[9px] tracking-[0.12em] text-dim mb-1.5">{stat.label}</div>
                   <div className={`font-condensed font-black text-xl leading-none ${
-                    stat.accent === 'navy' ? 'text-navy'
-                    : stat.accent === 'green' ? 'text-green'
-                    : 'text-charcoal'
+                    stat.accent === 'navy'  ? 'text-navy'  :
+                    stat.accent === 'green' ? 'text-green' :
+                    'text-charcoal'
                   }`}>
                     {stat.value}
                   </div>
@@ -264,10 +268,9 @@ export function WalletProfile({ address }: { address: string }) {
               ))}
             </div>
 
-            {/* Activity breakdown */}
+            {/* Activity + Top interactions */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-2.5">
 
-              {/* Method breakdown */}
               <div className="bg-surface border border-border rounded-xl p-4">
                 <div className="font-mono text-[11px] tracking-[0.12em] text-charcoal font-medium mb-3">
                   ACTIVITY BREAKDOWN
@@ -298,21 +301,32 @@ export function WalletProfile({ address }: { address: string }) {
                 )}
               </div>
 
-              {/* Top interactions */}
               <div className="bg-surface border border-border rounded-xl p-4">
                 <div className="font-mono text-[11px] tracking-[0.12em] text-charcoal font-medium mb-3">
                   TOP INTERACTIONS
                 </div>
                 <div className="space-y-0">
                   {[
-                    { label: 'Most used method', value: data.topMethod, cls: `font-condensed font-black text-lg ${methodColor(data.topMethod)}` },
+                    {
+                      label: 'Most used method',
+                      value: data.topMethod,
+                      cls: `font-condensed font-black text-lg ${methodColor(data.topMethod)}`,
+                    },
                     {
                       label: 'Most used dApp',
                       value: data.topDapp || (data.topDappAddr ? shortAddr(data.topDappAddr) : '—'),
                       cls: 'font-condensed font-black text-lg text-navy',
                     },
-                    { label: 'Total txs sent', value: formatNumber(data.txCount), cls: 'font-condensed font-black text-lg text-charcoal' },
-                    { label: 'Account type', value: data.isContract ? 'Contract' : 'EOA', cls: 'font-condensed font-black text-lg text-charcoal' },
+                    {
+                      label: 'Total txs sent',
+                      value: formatNumber(data.txCount),
+                      cls: 'font-condensed font-black text-lg text-charcoal',
+                    },
+                    {
+                      label: 'Account type',
+                      value: data.isContract ? 'Contract' : 'EOA',
+                      cls: 'font-condensed font-black text-lg text-charcoal',
+                    },
                   ].map(row => (
                     <div key={row.label} className="flex justify-between items-baseline py-1.5 border-b border-border last:border-0">
                       <div className="font-mono text-[11px] text-dim">{row.label}</div>
@@ -340,9 +354,11 @@ export function WalletProfile({ address }: { address: string }) {
                   </div>
                   <div className="space-y-0">
                     {data.recentTxs.map(tx => {
-                      const val = parseInt(tx.value || '0') / 1e18
-                      const age = Math.floor((Date.now() - new Date(tx.timestamp).getTime()) / 1000)
-                      const ageStr = age < 3600 ? `${Math.floor(age / 60)}m` : `${Math.floor(age / 3600)}h`
+                      const val    = parseInt(tx.value || '0') / 1e18
+                      const age    = Math.floor((Date.now() - new Date(tx.timestamp).getTime()) / 1000)
+                      const ageStr = age < 3600
+                        ? `${Math.floor(age / 60)}m`
+                        : `${Math.floor(age / 3600)}h`
                       return (
                         <a
                           key={tx.hash}
@@ -387,15 +403,19 @@ export function WalletProfile({ address }: { address: string }) {
       </main>
 
       {/* Footer */}
-      <footer className="bg-charcoal px-6 py-3 flex items-center justify-between flex-wrap gap-3 mt-auto">
-        <div className="font-mono text-[10px] text-dim">VEIN · LITEFORGE INTELLIGENCE · CHAIN ID 4441</div>
-        <div className="font-mono text-[10px] text-dim">
+      <footer className="bg-charcoal px-4 sm:px-6 py-3 flex flex-col sm:flex-row items-center justify-between gap-1 sm:gap-4 w-full mt-auto">
+        <div className="font-mono text-[9px] sm:text-[10px] text-dim text-center sm:text-left">
+          VEIN · LITEFORGE INTELLIGENCE · CHAIN ID 4441
+        </div>
+        <div className="font-mono text-[9px] sm:text-[10px] text-dim text-center">
           Built by{' '}
           <a href="https://x.com/Olumi441" target="_blank" rel="noopener noreferrer" className="text-silver hover:text-parchment transition-colors">
             Abu Olumi
           </a>
         </div>
-        <div className="font-mono text-[10px] text-dim">Blockscout API · Not financial advice</div>
+        <div className="font-mono text-[9px] sm:text-[10px] text-dim text-center sm:text-right">
+          Blockscout API · Not financial advice
+        </div>
       </footer>
     </div>
   )
