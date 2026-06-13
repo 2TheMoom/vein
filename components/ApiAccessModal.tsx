@@ -3,21 +3,23 @@ import { useState, Fragment } from 'react'
 import { IconKey, IconX } from '@tabler/icons-react'
 import { PAYMENT_DESTINATION, QUERY_PRICE_ZKLTC, FREE_QUERY_LIMIT } from '@/lib/blockscout'
 
+const REGISTRY_ADDRESS = '0x23016b88a855ebeA7B85d8Cf5DEF7bbE747fa596'
+
 const ENDPOINTS = [
   { method: 'GET', url: 'vein-lilac.vercel.app/api/intelligence/stats?wallet=YOUR_WALLET', desc: 'Full ecosystem snapshot — transactions, addresses, gas, block time' },
   { method: 'GET', url: 'vein-lilac.vercel.app/api/intelligence/activity?wallet=YOUR_WALLET&period=24h', desc: 'Transaction activity — period: 24h · 7d · 30d' },
   { method: 'GET', url: 'vein-lilac.vercel.app/api/intelligence/dapps?wallet=YOUR_WALLET', desc: 'Top dApp rankings by transaction count' },
   { method: 'GET', url: 'vein-lilac.vercel.app/api/intelligence/zkltc?wallet=YOUR_WALLET', desc: 'zkLTC · wzkLTC volume, holders, bridge interactions' },
   { method: 'GET', url: 'vein-lilac.vercel.app/api/intelligence/report/weekly?wallet=YOUR_WALLET', desc: 'Latest weekly intelligence report with deltas' },
-  { method: 'POST', url: 'vein-lilac.vercel.app/api/intelligence/confirm/:queryId', desc: 'Confirm payment · Body: {"wallet": "0xYOURS", "txId": "0xTX_HASH"}' },
+  { method: 'POST', url: 'vein-lilac.vercel.app/api/intelligence/confirm', desc: 'Confirm on-chain payment · Body: {"wallet": "0xYOURS"}' },
 ]
 
 const STEPS = [
-  <Fragment key="s0">Send <strong className="text-charcoal">0.005 zkLTC</strong> to the payment destination above on LiteForge</Fragment>,
-  <Fragment key="s1">Copy your <strong className="text-charcoal">transaction hash</strong> from the LiteForge explorer</Fragment>,
-  <Fragment key="s2">Call <strong className="text-charcoal">POST /api/intelligence/confirm/:queryId</strong> with your wallet and tx hash</Fragment>,
-  <Fragment key="s3">1 credit added — <strong className="text-charcoal">next query served immediately</strong></Fragment>,
-  <Fragment key="s4">Pass <strong className="text-charcoal">?wallet=0xYOURS</strong> on every request — that&apos;s how queries are tracked per wallet</Fragment>,
+  <Fragment key="s0">Call <strong className="text-charcoal">purchaseCredits()</strong> on the VeinRegistry contract sending 0.005 zkLTC per credit</Fragment>,
+  <Fragment key="s1">Contract forwards payment to <strong className="text-charcoal">0x1a870…be5fb</strong> and records your credits on-chain</Fragment>,
+  <Fragment key="s2">Call <strong className="text-charcoal">POST /api/intelligence/confirm</strong> with your wallet address</Fragment>,
+  <Fragment key="s3">Vein reads your on-chain credit balance and unlocks queries immediately</Fragment>,
+  <Fragment key="s4">Pass <strong className="text-charcoal">?wallet=0xYOURS</strong> on every request — that&apos;s how queries are tracked</Fragment>,
 ]
 
 interface ApiAccessModalProps {
@@ -76,21 +78,31 @@ export function ApiAccessModal({ open, onClose }: ApiAccessModalProps) {
             ))}
           </div>
 
-          {/* Payment destination */}
+          {/* Contract address */}
           <div>
-            <div className="font-mono text-[9px] tracking-[0.16em] text-dim mb-1.5">PAYMENT DESTINATION</div>
+            <div className="font-mono text-[9px] tracking-[0.16em] text-dim mb-1.5">VEIN REGISTRY CONTRACT</div>
             <div className="bg-parchment border border-border rounded-lg p-2.5 flex items-center gap-2">
               <div className="font-mono text-[9px] text-navy break-all flex-1 leading-relaxed">
-                {PAYMENT_DESTINATION}
+                {REGISTRY_ADDRESS}
               </div>
               <button
-                onClick={() => copy(PAYMENT_DESTINATION, 'dest')}
+                onClick={() => copy(REGISTRY_ADDRESS, 'contract')}
                 className="bg-navy text-parchment rounded px-2.5 py-1.5 font-mono text-[9px] tracking-[0.08em] shrink-0 hover:bg-[#2A4BAF] transition-colors"
               >
-                {copied === 'dest' ? 'COPIED!' : 'COPY'}
+                {copied === 'contract' ? 'COPIED!' : 'COPY'}
               </button>
             </div>
-            <div className="font-mono text-[9px] text-dim mt-1">Send zkLTC to this address on LiteForge using any EVM wallet</div>
+            <div className="font-mono text-[9px] text-dim mt-1">
+              Call <span className="text-navy">purchaseCredits()</span> on this contract to buy query credits on-chain ·{' '}
+              <a
+                href={`https://liteforge.explorer.caldera.xyz/address/${REGISTRY_ADDRESS}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-navy hover:underline"
+              >
+                view on explorer ↗
+              </a>
+            </div>
           </div>
 
           {/* Endpoints */}
@@ -126,7 +138,7 @@ export function ApiAccessModal({ open, onClose }: ApiAccessModalProps) {
 
           {/* How to pay */}
           <div>
-            <div className="font-mono text-[9px] tracking-[0.16em] text-dim mb-2">HOW TO PAY</div>
+            <div className="font-mono text-[9px] tracking-[0.16em] text-dim mb-2">HOW TO BUY CREDITS</div>
             <div className="grid grid-cols-[20px_1fr] gap-x-2.5 gap-y-1.5 items-start">
               {STEPS.map((step, i) => (
                 <Fragment key={i}>
@@ -151,17 +163,21 @@ const res = await fetch(
   '?wallet=0xYOUR_WALLET_ADDRESS'
 );
 const data = await res.json();
-// → { totalTxs, totalAddresses, avgBlockTime, gasPrice, ... }`}</pre>
+// → { totalTransactions, totalAddresses, avgBlockTime, ... }`}</pre>
             </div>
           </div>
-
         </div>
 
         {/* Footer */}
         <div className="px-5 py-3 border-t border-border flex gap-2">
-          <button className="flex items-center gap-1.5 bg-navy text-parchment rounded-lg px-4 py-2 font-mono text-[10px] tracking-[0.08em] hover:bg-[#2A4BAF] transition-colors">
-            VIEW DOCS ↗
-          </button>
+          <a
+            href={`https://liteforge.explorer.caldera.xyz/address/${REGISTRY_ADDRESS}`}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="flex items-center gap-1.5 bg-navy text-parchment rounded-lg px-4 py-2 font-mono text-[10px] tracking-[0.08em] hover:bg-[#2A4BAF] transition-colors"
+          >
+            VIEW CONTRACT ↗
+          </a>
           <button
             onClick={onClose}
             className="border border-muted text-dim rounded-lg px-4 py-2 font-mono text-[10px] tracking-[0.08em] hover:border-navy hover:text-navy transition-colors"
@@ -169,7 +185,6 @@ const data = await res.json();
             CLOSE
           </button>
         </div>
-
       </div>
     </div>
   )

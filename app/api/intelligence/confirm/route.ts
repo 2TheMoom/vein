@@ -1,34 +1,81 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { confirmPayment } from '@/lib/supabase'
+import { getWalletStatus } from '@/lib/viem'
 
+/**
+ * POST /api/intelligence/confirm
+ * Called after a user sends zkLTC to the VeinRegistry contract via purchaseCredits().
+ * Checks on-chain credit balance and syncs to Supabase so the next query is served.
+ *
+ * Body: { wallet: string }
+ */
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json()
-    const { wallet, txId } = body
+    const { wallet } = body
 
-    if (!wallet || !txId) {
+    if (!wallet) {
       return NextResponse.json(
-        { error: 'wallet and txId required in body' },
+        { error: 'wallet required in body' },
         { status: 400 }
       )
     }
 
-    const confirmed = await confirmPayment(wallet.toLowerCase(), txId)
+    const w = wallet.toLowerCase()
 
-    if (!confirmed) {
+    // Check on-chain credit balance
+    const status = await getWalletStatus(w)
+
+    if (!status) {
       return NextResponse.json(
-        { error: 'Payment not confirmed. Verify the tx exists on LiteForge and was sent to the correct destination.' },
-        { status: 400 }
+        { error: 'Could not read contract. Try again shortly.' },
+        { status: 503 }
       )
     }
+
+    if (status.credits === 0) {
+      return NextResponse.json(
+        {
+          error: 'No credits found on-chain.',
+          message: 'Send zkLTC to VeinRegistry.purchaseCredits() on LiteForge to add credits.',
+          contract: process.env.NEXT_PUBLIC_VEIN_REGISTRY_ADDRESS,
+        },
+        { status: 402 }
+      )
+    }
+
+    // Sync credit count to Supabase so query routes serve immediately
+    // We store a negative offset — Supabase count resets when credits are found on-chain
+    const db = getAdmin()
+    await db.from('vein_queries').upsert(
+      {
+        wallet: w,
+        count: 0, // reset free query count — they now have paid credits
+        last_query: new Date().toISOString(),
+        last_payment_tx: `onchain:${status.credits}credits`,
+      },
+      { onConflict: 'wallet' }
+    )
 
     return NextResponse.json({
       success: true,
-      message: '1 credit added. Your next query will be served immediately.',
-      wallet: wallet.toLowerCase(),
-      txId,
+      message: `${status.credits} credit${status.credits === 1 ? '' : 's'} confirmed on-chain. Your next query will be served immediately.`,
+      wallet: w,
+      credits: status.credits,
+      freeRemaining: status.freeRemaining,
+      contract: process.env.NEXT_PUBLIC_VEIN_REGISTRY_ADDRESS,
     })
-  } catch {
-    return NextResponse.json({ error: 'Failed to confirm payment' }, { status: 500 })
+  } catch (e) {
+    console.error('Confirm error:', e)
+    return NextResponse.json(
+      { error: 'Failed to confirm payment' },
+      { status: 500 }
+    )
   }
+}
+
+function getAdmin() {
+  const { createClient } = require('@supabase/supabase-js')
+  const url = process.env.NEXT_PUBLIC_SUPABASE_URL || 'https://placeholder.supabase.co'
+  const key = process.env.SUPABASE_SERVICE_ROLE_KEY || 'placeholder'
+  return createClient(url, key)
 }
