@@ -48,9 +48,62 @@ export async function fetchBlock(blockNumber: number) {
   return get<any>(`/blocks/${blockNumber}`)
 }
 
-// Fetch token metadata directly by contract address
 export async function fetchTokenInfo(address: string) {
   return get<any>(`/tokens/${address}`)
+}
+
+/**
+ * Fetch total supply and decimals directly from the contract via RPC.
+ * Uses viem to call totalSupply() and decimals() on the ERC-20 contract.
+ * This bypasses the Blockscout indexer completely — no lag, no wrong decimals.
+ */
+export async function fetchTokenSupply(): Promise<{ supply: string; decimals: number } | null> {
+  try {
+    const { createPublicClient, http, formatUnits } = await import('viem')
+
+    const client = createPublicClient({
+      transport: http(RPC),
+    })
+
+    const totalSupplyAbi = [{
+      name: 'totalSupply',
+      type: 'function',
+      stateMutability: 'view',
+      inputs: [],
+      outputs: [{ type: 'uint256' }],
+    }] as const
+
+    const decimalsAbi = [{
+      name: 'decimals',
+      type: 'function',
+      stateMutability: 'view',
+      inputs: [],
+      outputs: [{ type: 'uint8' }],
+    }] as const
+
+    const [rawSupply, rawDecimals] = await Promise.all([
+      client.readContract({
+        address: WZKLTC_ADDRESS as `0x${string}`,
+        abi: totalSupplyAbi,
+        functionName: 'totalSupply',
+      }),
+      client.readContract({
+        address: WZKLTC_ADDRESS as `0x${string}`,
+        abi: decimalsAbi,
+        functionName: 'decimals',
+      }),
+    ])
+
+    const decimals = Number(rawDecimals)
+    const supply   = formatUnits(rawSupply as bigint, decimals)
+
+    console.log(`[Vein] wzkLTC — raw: ${rawSupply}, decimals: ${decimals}, supply: ${supply}`)
+
+    return { supply, decimals }
+  } catch (e) {
+    console.error('[Vein] fetchTokenSupply error:', e)
+    return null
+  }
 }
 
 export async function countTxsInPeriod(hoursAgo: number): Promise<number> {
@@ -68,12 +121,12 @@ export async function countTxsInPeriod(hoursAgo: number): Promise<number> {
 export function classifyMethod(method: string | null): string {
   if (!method) return 'transfer'
   const m = method.toLowerCase()
-  if (m.includes('swap') || m.includes('exchange'))                          return 'swap'
-  if (m.includes('mint') || m.includes('lazymint'))                          return 'mint'
+  if (m.includes('swap') || m.includes('exchange'))                            return 'swap'
+  if (m.includes('mint') || m.includes('lazymint'))                            return 'mint'
   if (m.includes('deposit') || m.includes('addliquidity') || m.includes('stake')) return 'deposit'
-  if (m.includes('bridge') || m.includes('relay') || m.includes('cross'))   return 'bridge'
-  if (m.includes('transfer') || m.includes('approve') || m.includes('send')) return 'transfer'
-  if (m.includes('withdraw') || m.includes('remove'))                        return 'withdraw'
+  if (m.includes('bridge') || m.includes('relay') || m.includes('cross'))     return 'bridge'
+  if (m.includes('transfer') || m.includes('approve') || m.includes('send'))  return 'transfer'
+  if (m.includes('withdraw') || m.includes('remove'))                          return 'withdraw'
   return 'other'
 }
 
