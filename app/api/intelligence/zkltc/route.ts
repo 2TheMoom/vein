@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { fetchTokenTransfers, WZKLTC_ADDRESS } from '@/lib/blockscout'
-import { isQueryAllowed, incrementQueryCount } from '@/lib/supabase'
-import { FREE_QUERY_LIMIT } from '@/lib/blockscout'
+import { fetchTokenTransfers, WZKLTC_ADDRESS, FREE_QUERY_LIMIT } from '@/lib/blockscout'
+import { isQueryAllowed, incrementQueryCount, getQueryCount } from '@/lib/supabase'
 
 export async function GET(req: NextRequest) {
   const wallet = req.nextUrl.searchParams.get('wallet')?.toLowerCase()
@@ -11,7 +10,8 @@ export async function GET(req: NextRequest) {
   if (!allowed) {
     return NextResponse.json({
       error: 'Free query limit reached',
-      message: `Send 0.005 zkLTC to 0x1a870eA7c2AEC156ff84c83fa4fD30bf9D6be5fb on LiteForge`,
+      message: `Call purchaseCredits() on VeinRegistry sending 0.005 zkLTC per credit, then POST /api/intelligence/confirm with your wallet`,
+      contract: process.env.NEXT_PUBLIC_VEIN_REGISTRY_ADDRESS,
       limit: FREE_QUERY_LIMIT,
     }, { status: 402 })
   }
@@ -41,6 +41,9 @@ export async function GET(req: NextRequest) {
 
     await incrementQueryCount(wallet)
 
+    const usedCount = await getQueryCount(wallet)
+    const remaining = Math.max(0, FREE_QUERY_LIMIT - usedCount)
+
     return NextResponse.json({
       contract: WZKLTC_ADDRESS,
       symbol: tokenMeta?.symbol || 'wzkLTC',
@@ -51,6 +54,11 @@ export async function GET(req: NextRequest) {
       recentVolume: volume.toFixed(6),
       bridgeInteractions: bridgeCount,
       timestamp: new Date().toISOString(),
+      queryInfo: {
+        freeQueriesUsed: usedCount,
+        freeQueriesRemaining: remaining,
+        freeQueryLimit: FREE_QUERY_LIMIT,
+      },
     })
   } catch {
     return NextResponse.json({ error: 'Failed to fetch zkLTC data' }, { status: 500 })
