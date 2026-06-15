@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getWalletStatus } from '@/lib/viem'
+import { FREE_QUERY_LIMIT } from '@/lib/blockscout'
 
 /**
  * POST /api/intelligence/confirm
@@ -44,12 +45,12 @@ export async function POST(req: NextRequest) {
     }
 
     // Sync credit count to Supabase so query routes serve immediately
-    // We store a negative offset — Supabase count resets when credits are found on-chain
+    // Resetting count to 0 grants FREE_QUERY_LIMIT more queries via isQueryAllowed
     const db = getAdmin()
     await db.from('vein_queries').upsert(
       {
         wallet: w,
-        count: 0, // reset free query count — they now have paid credits
+        count: 0,
         last_query: new Date().toISOString(),
         last_payment_tx: `onchain:${status.credits}credits`,
       },
@@ -58,10 +59,10 @@ export async function POST(req: NextRequest) {
 
     return NextResponse.json({
       success: true,
-      message: `${status.credits} credit${status.credits === 1 ? '' : 's'} confirmed on-chain. Your next query will be served immediately.`,
+      message: `${status.credits} credit${status.credits === 1 ? '' : 's'} confirmed on-chain. Your query limit has been reset — ${FREE_QUERY_LIMIT} more queries unlocked.`,
       wallet: w,
-      credits: status.credits,
-      freeRemaining: status.freeRemaining,
+      onChainCredits: status.credits,
+      queriesUnlocked: FREE_QUERY_LIMIT,
       contract: process.env.NEXT_PUBLIC_VEIN_REGISTRY_ADDRESS,
     })
   } catch (e) {
