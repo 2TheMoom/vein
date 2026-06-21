@@ -2,13 +2,6 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getWalletStatus } from '@/lib/viem'
 import { FREE_QUERY_LIMIT } from '@/lib/blockscout'
 
-/**
- * POST /api/intelligence/confirm
- * Called after a user sends zkLTC to the VeinRegistry contract via purchaseCredits().
- * Checks on-chain credit balance and syncs to Supabase so the next query is served.
- *
- * Body: { wallet: string }
- */
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json()
@@ -23,7 +16,6 @@ export async function POST(req: NextRequest) {
 
     const w = wallet.toLowerCase()
 
-    // Check on-chain credit balance
     const status = await getWalletStatus(w)
 
     if (!status) {
@@ -37,15 +29,13 @@ export async function POST(req: NextRequest) {
       return NextResponse.json(
         {
           error: 'No credits found on-chain.',
-          message: 'Send zkLTC to VeinRegistry.purchaseCredits() on LiteForge to add credits.',
+          message: 'Call purchaseCredits() on VeinRegistry sending 0.005 zkLTC per credit.',
           contract: process.env.NEXT_PUBLIC_VEIN_REGISTRY_ADDRESS,
         },
         { status: 402 }
       )
     }
 
-    // Sync credit count to Supabase so query routes serve immediately
-    // Resetting count to 0 grants FREE_QUERY_LIMIT more queries via isQueryAllowed
     const db = getAdmin()
     await db.from('vein_queries').upsert(
       {
