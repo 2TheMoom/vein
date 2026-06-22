@@ -46,11 +46,30 @@ function methodColor(method: string): string {
   return 'text-dim'
 }
 
+function extractTxCount(addrData: any, txsLength: number): number {
+  const candidates = [
+    addrData?.transaction_count,
+    addrData?.transactions_count,
+    addrData?.tx_count,
+    addrData?.txs_count,
+    addrData?.transactions,
+  ]
+  for (const c of candidates) {
+    const n = parseInt(c)
+    if (!isNaN(n) && n > 0) return n
+  }
+  return txsLength
+}
+
 export function WalletProfile({ address }: { address: string }) {
   const [data, setData]       = useState<WalletData | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError]     = useState<string | null>(null)
-  const [copied, setCopied]   = useState(false)
+  const [copiedAddr, setCopiedAddr]   = useState(false)
+  const [copiedShare, setCopiedShare] = useState(false)
+
+  const shareUrl = `vein-lilac.vercel.app/wallet/${address}`
+  const shortShare = `vein-lilac.vercel.app/wallet/${shortAddr(address)}`
 
   useEffect(() => {
     async function load() {
@@ -74,46 +93,34 @@ export function WalletProfile({ address }: { address: string }) {
         const countersData = countersRes.ok ? await countersRes.json() : {}
         const txs          = txData.items || []
 
-        // Method breakdown — only outbound txs
         const methodCounts: Record<string, number> = {}
         const dappCounts:   Record<string, { name: string | null; count: number }> = {}
 
         for (const tx of txs) {
           if (tx.from?.hash?.toLowerCase() !== address.toLowerCase()) continue
-
           const cat = classifyMethod(tx.method)
           methodCounts[cat] = (methodCounts[cat] || 0) + 1
-
           if (tx.to?.hash && tx.to?.is_contract) {
             const addr = tx.to.hash.toLowerCase()
-            if (!dappCounts[addr]) {
-              dappCounts[addr] = { name: tx.to.name || null, count: 0 }
-            }
+            if (!dappCounts[addr]) dappCounts[addr] = { name: tx.to.name || null, count: 0 }
             dappCounts[addr].count++
           }
         }
 
-        const topMethod = Object.entries(methodCounts)
-          .sort((a, b) => b[1] - a[1])[0]?.[0] || '—'
+        const topMethod = Object.entries(methodCounts).sort((a, b) => b[1] - a[1])[0]?.[0] || '—'
+        const topDappEntry = Object.entries(dappCounts).sort((a, b) => b[1].count - a[1].count)[0]
+        const topDapp     = topDappEntry?.[1].name || null
+        const topDappAddr = topDappEntry?.[0] || null
 
-        const topDappEntry = Object.entries(dappCounts)
-          .sort((a, b) => b[1].count - a[1].count)[0]
-        const topDapp      = topDappEntry?.[1].name || null
-        const topDappAddr  = topDappEntry?.[0] || null
-
-        const timestamps = txs
-          .map((tx: any) => tx.timestamp)
-          .filter(Boolean)
-          .sort()
+        const timestamps = txs.map((tx: any) => tx.timestamp).filter(Boolean).sort()
         const firstSeen  = timestamps[0] || null
         const lastActive = timestamps[timestamps.length - 1] || null
 
-        // Get real tx count from counters endpoint
         const txCount =
           parseInt(countersData?.transactions_count) ||
           parseInt(countersData?.transaction_count)  ||
           parseInt(countersData?.txs_count)          ||
-          txs.length
+          extractTxCount(addrData, txs.length)
 
         setData({
           address,
@@ -140,10 +147,16 @@ export function WalletProfile({ address }: { address: string }) {
     if (address) load()
   }, [address])
 
-  const copyAddress = () => {
+  const copyAddr = () => {
     navigator.clipboard.writeText(address)
-    setCopied(true)
-    setTimeout(() => setCopied(false), 1500)
+    setCopiedAddr(true)
+    setTimeout(() => setCopiedAddr(false), 1500)
+  }
+
+  const copyShare = () => {
+    navigator.clipboard.writeText(`https://${shareUrl}`)
+    setCopiedShare(true)
+    setTimeout(() => setCopiedShare(false), 1500)
   }
 
   const totalMethods = Object.values(data?.methodBreakdown || {}).reduce((a, b) => a + b, 0)
@@ -180,9 +193,17 @@ export function WalletProfile({ address }: { address: string }) {
 
       <main className="flex-1 px-4 sm:px-6 py-6 max-w-3xl mx-auto w-full">
 
+        {/* Back link — Umbra style */}
+        <Link
+          href="/dashboard"
+          className="inline-flex items-center gap-1.5 font-mono text-[11px] text-dim hover:text-navy transition-colors mb-5"
+        >
+          ← Back to dashboard
+        </Link>
+
         {/* Loading */}
         {loading && (
-          <div className="space-y-3 mt-4">
+          <div className="space-y-3">
             <div className="h-24 bg-surface border border-border rounded-xl animate-pulse"/>
             <div className="grid grid-cols-2 md:grid-cols-4 gap-2.5">
               {Array.from({ length: 4 }).map((_, i) => (
@@ -198,9 +219,6 @@ export function WalletProfile({ address }: { address: string }) {
           <div className="mt-8 text-center">
             <div className="font-condensed font-black text-2xl text-charcoal mb-2">NOT FOUND</div>
             <div className="font-mono text-[10px] text-dim mb-4">{error}</div>
-            <Link href="/dashboard" className="font-mono text-[10px] text-navy hover:underline">
-              ← Back to dashboard
-            </Link>
           </div>
         )}
 
@@ -215,35 +233,40 @@ export function WalletProfile({ address }: { address: string }) {
                   <div className="font-mono text-[9px] tracking-[0.16em] text-dim mb-1">
                     {data.isContract ? 'CONTRACT' : 'WALLET'} · LITEFORGE
                   </div>
-                  <div className="font-condensed font-black text-2xl text-charcoal leading-none mb-1">
-                    {data.contractName || shortAddr(address)}
+                  {/* Shortened address with copy */}
+                  <div className="flex items-center gap-2 mb-1">
+                    <div className="font-condensed font-black text-2xl text-charcoal leading-none">
+                      {data.contractName || shortAddr(address)}
+                    </div>
+                    <button
+                      onClick={copyAddr}
+                      className="font-mono text-[9px] tracking-[0.08em] border border-muted text-dim px-2 py-0.5 rounded hover:border-navy hover:text-navy transition-colors shrink-0"
+                    >
+                      {copiedAddr ? 'COPIED!' : 'COPY'}
+                    </button>
                   </div>
-                  <div className="font-mono text-[9px] text-dim break-all">{address}</div>
+                  
                 </div>
-                <div className="flex gap-2 shrink-0">
-                  <button
-                    onClick={copyAddress}
-                    className="font-mono text-[9px] tracking-[0.08em] border border-muted text-dim px-3 py-1.5 rounded hover:border-navy hover:text-navy transition-colors"
-                  >
-                    {copied ? 'COPIED!' : 'COPY'}
-                  </button>
-                  <a
-                    href={`https://liteforge.explorer.caldera.xyz/address/${address}`}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="font-mono text-[9px] tracking-[0.08em] bg-navy text-parchment px-3 py-1.5 rounded hover:bg-[#2A4BAF] transition-colors"
-                  >
-                    EXPLORER ↗
-                  </a>
-                </div>
+                <a
+                  href={`https://liteforge.explorer.caldera.xyz/address/${address}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="font-mono text-[9px] tracking-[0.08em] bg-navy text-parchment px-3 py-1.5 rounded hover:bg-[#2A4BAF] transition-colors shrink-0"
+                >
+                  EXPLORER ↗
+                </a>
               </div>
 
-              {/* Share URL */}
+              {/* Share URL — shortened + copyable */}
               <div className="mt-3 pt-3 border-t border-border flex items-center gap-2 flex-wrap">
-                <div className="font-mono text-[9px] text-dim">Share:</div>
-                <div className="font-mono text-[9px] text-navy break-all">
-                  vein-lilac.vercel.app/wallet/{address}
-                </div>
+                <div className="font-mono text-[9px] text-dim shrink-0">Share:</div>
+                <div className="font-mono text-[9px] text-navy">{shortShare}</div>
+                <button
+                  onClick={copyShare}
+                  className="font-mono text-[9px] tracking-[0.06em] border border-muted text-dim px-2 py-0.5 rounded hover:border-navy hover:text-navy transition-colors shrink-0 ml-auto"
+                >
+                  {copiedShare ? 'COPIED!' : 'COPY LINK'}
+                </button>
               </div>
             </div>
 
@@ -270,7 +293,6 @@ export function WalletProfile({ address }: { address: string }) {
 
             {/* Activity + Top interactions */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-2.5">
-
               <div className="bg-surface border border-border rounded-xl p-4">
                 <div className="font-mono text-[11px] tracking-[0.12em] text-charcoal font-medium mb-3">
                   ACTIVITY BREAKDOWN
