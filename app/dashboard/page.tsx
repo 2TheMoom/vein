@@ -208,9 +208,9 @@ export default function Dashboard() {
               </div>
               <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 mb-3">
                 <div>
-                  <div className="font-mono text-[9px] text-dim mb-0.5">TXS TODAY</div>
+                  <div className="font-mono text-[9px] text-dim mb-0.5">THIS WEEK</div>
                   <div className="font-condensed font-black text-xl text-navy">
-                    {formatNumber(parseInt(stats.transactions_today))}
+                    {formatNumber(parseInt(stats.transactions_today) * 7)}
                   </div>
                 </div>
                 <div>
