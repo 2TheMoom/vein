@@ -11,15 +11,13 @@ import {
   saveWeeklyReport,
   getLatestReport,
   getLaunchDate,
-  getWeekNumber,
   WeeklyReportData,
 } from '@/lib/supabase'
 
-// Protect cron from unauthorized calls
 function isAuthorized(req: NextRequest): boolean {
   const auth = req.headers.get('authorization')
   const cronSecret = process.env.CRON_SECRET
-  if (!cronSecret) return true // dev mode
+  if (!cronSecret) return true
   return auth === `Bearer ${cronSecret}`
 }
 
@@ -63,18 +61,7 @@ export async function GET(req: NextRequest) {
   try {
     const launchDate = await getLaunchDate()
     const now = new Date()
-    const prevReport = await getLatestReport()
-    const weekNumber = prevReport ? prevReport.week_number + 1 : 1
     const daysSinceLaunch = (now.getTime() - launchDate.getTime()) / (1000 * 60 * 60 * 24)
-
-    // Skip if report already exists for this week
-  const prevReport = await getLatestReport()
-  if (prevReport?.week_number === weekNumber) {
-    return NextResponse.json({
-    message: `Report for Week ${weekNumber} already exists — skipping`,
-    week: weekNumber,
-  })
-}
 
     // Don't generate until at least 7 days after launch
     if (daysSinceLaunch < 7) {
@@ -85,7 +72,18 @@ export async function GET(req: NextRequest) {
       })
     }
 
-    // Get previous report for deltas
+    // Get previous report — used for week number and deltas
+    const prevReport = await getLatestReport()
+    const weekNumber = prevReport ? prevReport.week_number + 1 : 1
+
+    // Skip if report already exists for this week
+    if (prevReport?.week_number === weekNumber) {
+      return NextResponse.json({
+        message: `Report for Week ${weekNumber} already exists — skipping`,
+        week: weekNumber,
+      })
+    }
+
     const prevData = prevReport?.data
 
     // Fetch current week data in parallel
@@ -119,7 +117,7 @@ export async function GET(req: NextRequest) {
       totalTransactions: parseInt(stats.total_transactions),
       totalAddresses: parseInt(stats.total_addresses),
       transactionsThisWeek: txs7d,
-      activeWallets: 0, // requires indexer — set to 0 until available
+      activeWallets: 0,
       newWallets: 0,
       avgBlockTimeMs: stats.average_block_time,
       avgGasPrice: stats.gas_prices?.average ?? 0,
@@ -146,7 +144,6 @@ export async function GET(req: NextRequest) {
       },
     }
 
-    // Generate insight after deltas are computed
     reportData.insight = generateInsight(reportData)
 
     const weekLabel = `Week ${weekNumber}`
