@@ -170,7 +170,7 @@ export function WeeklyReportModal({ open, onClose }: WeeklyReportModalProps) {
                     PREV WEEK
                   </button>
                   <div className="font-mono text-[10px] text-dim tracking-[0.1em]">
-                    {currentIndex + 1} / {reports.length}
+                    {reports.length - currentIndex} / {reports.length}
                   </div>
                   <button
                     onClick={() => setCurrentIndex(i => i - 1)}
