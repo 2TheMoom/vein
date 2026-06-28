@@ -63,8 +63,18 @@ export async function GET(req: NextRequest) {
   try {
     const launchDate = await getLaunchDate()
     const now = new Date()
-    const weekNumber = await getWeekNumber()
+    const prevReport = await getLatestReport()
+    const weekNumber = prevReport ? prevReport.week_number + 1 : 1
     const daysSinceLaunch = (now.getTime() - launchDate.getTime()) / (1000 * 60 * 60 * 24)
+
+    // Skip if report already exists for this week
+  const prevReport = await getLatestReport()
+  if (prevReport?.week_number === weekNumber) {
+    return NextResponse.json({
+    message: `Report for Week ${weekNumber} already exists — skipping`,
+    week: weekNumber,
+  })
+}
 
     // Don't generate until at least 7 days after launch
     if (daysSinceLaunch < 7) {

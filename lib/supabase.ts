@@ -147,5 +147,5 @@ export async function getWeekNumber(): Promise<number> {
   const now = new Date()
   const diffMs = now.getTime() - launchDate.getTime()
   const diffDays = diffMs / (1000 * 60 * 60 * 24)
-  return Math.floor(diffDays / 7) + 1
+  return Math.floor(diffDays / 7)
 }
