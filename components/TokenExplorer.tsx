@@ -113,7 +113,7 @@ export function TokenExplorer() {
             {visible.map((token) => (
               <a
                 key={token.address}
-                href={`https://liteforge.explorer.caldera.xyz/address/${token.address}`}
+                href={`/token/${token.address}`}
                 target="_blank"
                 rel="noopener noreferrer"
                 className="grid grid-cols-[1fr_70px_90px_80px] gap-3 py-2 border-b border-border/40 last:border-0 hover:bg-parchment rounded transition-colors items-center group"
