@@ -86,7 +86,6 @@ export async function GET(req: NextRequest) {
     }
 
     // Get previous report for deltas
-    const prevReport = await getLatestReport()
     const prevData = prevReport?.data
 
     // Fetch current week data in parallel
