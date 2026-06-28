@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { fetchStats, FREE_QUERY_LIMIT } from '@/lib/blockscout'
 import { isQueryAllowed, incrementQueryCount, getQueryCount } from '@/lib/supabase'
+import { consumeQueryOnChain } from '@/lib/viem'
 
 export async function GET(req: NextRequest) {
   const wallet = req.nextUrl.searchParams.get('wallet')?.toLowerCase()
@@ -22,6 +23,7 @@ export async function GET(req: NextRequest) {
   try {
     const stats = await fetchStats()
     await incrementQueryCount(wallet)
+    await consumeQueryOnChain(wallet)
 
     // Get updated count after increment to compute remaining
     const usedCount = await getQueryCount(wallet)

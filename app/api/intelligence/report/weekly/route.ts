@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { fetchStats, fetchTokenTransfers, WZKLTC_ADDRESS, countTxsInPeriod } from '@/lib/blockscout'
 import { isQueryAllowed, incrementQueryCount } from '@/lib/supabase'
 import { FREE_QUERY_LIMIT } from '@/lib/blockscout'
+import { consumeQueryOnChain } from '@/lib/viem'
 
 export async function GET(req: NextRequest) {
   const wallet = req.nextUrl.searchParams.get('wallet')?.toLowerCase()
@@ -35,6 +36,7 @@ export async function GET(req: NextRequest) {
     const weekStart = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000)
 
     await incrementQueryCount(wallet)
+    await consumeQueryOnChain(wallet)
 
     return NextResponse.json({
       week: `Week ending ${now.toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })}`,

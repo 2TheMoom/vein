@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { fetchStats, FREE_QUERY_LIMIT } from '@/lib/blockscout'
 import { isQueryAllowed, incrementQueryCount, getQueryCount } from '@/lib/supabase'
+import { consumeQueryOnChain } from '@/lib/viem'
 
 // Internal system wallet — bypasses query limit for dashboard use
 const SYSTEM_WALLET = '0x0000000000000000000000000000000000000001'
@@ -62,6 +63,7 @@ export async function GET(req: NextRequest) {
     let queryInfo = null
     if (!isSystem) {
       await incrementQueryCount(wallet)
+      await consumeQueryOnChain(wallet)
       const usedCount = await getQueryCount(wallet)
       const remaining = Math.max(0, FREE_QUERY_LIMIT - usedCount)
       queryInfo = {
