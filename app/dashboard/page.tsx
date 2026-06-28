@@ -10,6 +10,7 @@ import { Footer } from '@/components/Footer'
 import { LiveFeed } from '@/components/LiveFeed'
 import { WalletSearch } from '@/components/WalletSearch'
 import { HealthScore } from '@/components/HealthScore'
+import { TokenExplorer } from '@/components/TokenExplorer'
 import {
   fetchStats,
   fetchTransactions,
@@ -405,6 +406,7 @@ export default function Dashboard() {
           </div>
         </div>
 
+        <TokenExplorer />
         <WalletSearch />
         <LiveFeed />
         <QueryPanel />
