@@ -121,12 +121,69 @@ export async function countTxsInPeriod(hoursAgo: number): Promise<number> {
 export function classifyMethod(method: string | null): string {
   if (!method) return 'transfer'
   const m = method.toLowerCase()
-  if (m.includes('swap') || m.includes('exchange'))                            return 'swap'
-  if (m.includes('mint') || m.includes('lazymint'))                            return 'mint'
-  if (m.includes('deposit') || m.includes('addliquidity') || m.includes('stake')) return 'deposit'
-  if (m.includes('bridge') || m.includes('relay') || m.includes('cross'))     return 'bridge'
-  if (m.includes('transfer') || m.includes('approve') || m.includes('send'))  return 'transfer'
-  if (m.includes('withdraw') || m.includes('remove'))                          return 'withdraw'
+
+  // Swap / exchange
+  if (m.includes('swap') || m.includes('exchange'))
+    return 'swap'
+
+  // Mint / claim
+  if (m.includes('mint') || m.includes('lazymint') || m.includes('claim'))
+    return 'mint'
+
+  // Deposit / liquidity / stake
+  if (
+    m.includes('deposit') ||
+    m.includes('addliquidity') ||
+    m.includes('stake') ||
+    m.includes('provide')
+  ) return 'deposit'
+
+  // Bridge / cross-chain
+  if (m.includes('bridge') || m.includes('relay') || m.includes('cross'))
+    return 'bridge'
+
+  // Transfer / approve / send
+  if (
+    m.includes('transfer') ||
+    m.includes('approve') ||
+    m.includes('send') ||
+    m.includes('safetransfer')
+  ) return 'transfer'
+
+  // Withdraw / remove / redeem
+  if (m.includes('withdraw') || m.includes('remove') || m.includes('redeem'))
+    return 'withdraw'
+
+  // Interact — check-ins, votes, increments, registrations
+  if (
+    m.includes('register') ||
+    m.includes('checkin') ||
+    m.includes('check_in') ||
+    m.includes('increment') ||
+    m.includes('vote') ||
+    m.includes('cast') ||
+    m.includes('submit')
+  ) return 'interact'
+
+  // Deploy / create / initialize
+  if (
+    m.includes('deploy') ||
+    m.includes('create') ||
+    m.includes('initialize') ||
+    m.includes('init')
+  ) return 'deploy'
+
+  // Config / admin / settings
+  if (
+    m.includes('set') ||
+    m.includes('update') ||
+    m.includes('config') ||
+    m.includes('pause') ||
+    m.includes('unpause') ||
+    m.includes('grant') ||
+    m.includes('revoke')
+  ) return 'config'
+
   return 'other'
 }
 
