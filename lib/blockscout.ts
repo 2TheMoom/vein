@@ -120,6 +120,10 @@ export async function countTxsInPeriod(hoursAgo: number): Promise<number> {
 
 export function classifyMethod(method: string | null): string {
   if (!method) return 'transfer'
+
+  // Raw hex selector — unverified contract call
+  if (method.startsWith('0x') && method.length <= 10) return 'contract call'
+
   const m = method.toLowerCase()
 
   // Swap / exchange
@@ -153,6 +157,19 @@ export function classifyMethod(method: string | null): string {
   // Withdraw / remove / redeem
   if (m.includes('withdraw') || m.includes('remove') || m.includes('redeem'))
     return 'withdraw'
+
+  // Lending / borrowing
+  if (m.includes('borrow') || m.includes('repay') || m.includes('liquidat'))
+    return 'borrow'
+
+  // Game / mining mechanics
+  if (
+    m.includes('mine') ||
+    m.includes('startblock') ||
+    m.includes('start_block') ||
+    m.includes('harvest') ||
+    m.includes('craft')
+  ) return 'game'
 
   // Interact — check-ins, votes, increments, registrations
   if (
