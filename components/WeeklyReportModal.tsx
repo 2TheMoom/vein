@@ -17,10 +17,16 @@ interface ReportRow {
   generated_at: string
 }
 
+function trendArrow(delta: string | undefined): string {
+  if (!delta || delta === '+∞') return delta || ''
+  if (delta.startsWith('-')) return `▼ ${delta}`
+  return `▲ ${delta}`
+}
+
 export function WeeklyReportModal({ open, onClose }: WeeklyReportModalProps) {
-  const [reports, setReports] = useState<ReportRow[]>([])
+  const [reports, setReports]           = useState<ReportRow[]>([])
   const [currentIndex, setCurrentIndex] = useState(0)
-  const [loading, setLoading] = useState(true)
+  const [loading, setLoading]           = useState(true)
   const [daysUntilFirst, setDaysUntilFirst] = useState<number | null>(null)
 
   useEffect(() => {
@@ -36,7 +42,6 @@ export function WeeklyReportModal({ open, onClose }: WeeklyReportModalProps) {
       .finally(() => setLoading(false))
   }, [open])
 
-  // Check how many days until first report
   useEffect(() => {
     if (!open || reports.length > 0) return
     fetch('/api/cron/weekly-report')
@@ -47,37 +52,46 @@ export function WeeklyReportModal({ open, onClose }: WeeklyReportModalProps) {
       .catch(() => {})
   }, [open, reports])
 
-  const report = reports[currentIndex] || null
-  const data = report?.data || null
+  const report  = reports[currentIndex] || null
+  const data    = report?.data || null
   const canPrev = currentIndex < reports.length - 1
   const canNext = currentIndex > 0
 
   const formatDate = (iso: string) =>
     new Date(iso).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })
 
+  const cleanMethod = (method: string | undefined) => {
+    if (!method || method === 'other') return 'Uncategorized'
+    return method.charAt(0).toUpperCase() + method.slice(1)
+  }
+
   const downloadReport = () => {
     if (!report || !data) return
 
     const periodStart = formatDate(report.period_start)
-    const periodEnd = formatDate(report.period_end)
+    const periodEnd   = formatDate(report.period_end)
 
     const content = [
       '═══════════════════════════════════════════',
-      `  VEIN — LITEFORGE INTELLIGENCE`,
+      '  VEIN — LITEFORGE INTELLIGENCE',
       `  ${report.week_label.toUpperCase()} · ${periodStart} – ${periodEnd}`,
       '═══════════════════════════════════════════',
+      '',
+      '  HEADLINE',
+      '─────────────────────────────────────────',
+      `  ▶  ${data.transactionsThisWeek?.toLocaleString() || '—'} transactions  ${trendArrow(data.deltas?.transactions)}`,
       '',
       'ECOSYSTEM METRICS',
       '─────────────────────────────────────────',
       `Total transactions (all-time)  ${data.totalTransactions?.toLocaleString() || '—'}`,
-      `Transactions this week         ${data.transactionsThisWeek?.toLocaleString() || '—'}  ${data.deltas?.transactions || ''}`,
-      `Total addresses (all-time)     ${data.totalAddresses?.toLocaleString() || '—'}  ${data.deltas?.wallets || ''}`,
-      `wzkLTC volume (7d)             ${data.wzkltcVolume || '—'} wzkLTC  ${data.deltas?.volume || ''}`,
-      `Bridge interactions (7d)       ${data.bridgeInteractions || '—'}  ${data.deltas?.bridge || ''}`,
+      `Transactions this week         ${data.transactionsThisWeek?.toLocaleString() || '—'}  ${trendArrow(data.deltas?.transactions)}`,
+      `Total addresses (all-time)     ${data.totalAddresses?.toLocaleString() || '—'}  ${trendArrow(data.deltas?.wallets)}`,
+      `wzkLTC volume (7d)             ${data.wzkltcVolume || '—'} wzkLTC  ${trendArrow(data.deltas?.volume)}`,
+      `Bridge interactions (7d)       ${data.bridgeInteractions || '—'}  ${trendArrow(data.deltas?.bridge)}`,
       `Avg block time                 ${data.avgBlockTimeMs || '—'} ms`,
       `Avg gas price                  ${data.avgGasPrice || '—'} gwei`,
       `Top dApp                       ${data.topDapp || '—'}`,
-      `Top method                     ${data.topMethod || '—'}`,
+      `Top method                     ${cleanMethod(data.topMethod)}`,
       '',
       'INSIGHT',
       '─────────────────────────────────────────',
@@ -85,16 +99,16 @@ export function WeeklyReportModal({ open, onClose }: WeeklyReportModalProps) {
       '',
       '─────────────────────────────────────────',
       `Generated: ${formatDate(report.generated_at)}`,
-      `Source:    vein.vercel.app`,
+      `Source:    vein-lilac.vercel.app`,
       `Chain:     LiteForge · Chain ID 4441`,
       `Builder:   Abu Olumi (x.com/Olumi441)`,
       '═══════════════════════════════════════════',
     ].join('\n')
 
     const blob = new Blob([content], { type: 'text/plain' })
-    const url = URL.createObjectURL(blob)
-    const a = document.createElement('a')
-    a.href = url
+    const url  = URL.createObjectURL(blob)
+    const a    = document.createElement('a')
+    a.href     = url
     a.download = `vein-${report.week_label.toLowerCase().replace(' ', '-')}-report.txt`
     a.click()
     URL.revokeObjectURL(url)
@@ -188,15 +202,28 @@ export function WeeklyReportModal({ open, onClose }: WeeklyReportModalProps) {
                 LITEFORGE TESTNET · {formatDate(report.period_start).toUpperCase()} – {formatDate(report.period_end).toUpperCase()}
               </div>
 
+              {/* Headline KPI */}
+              <div className="bg-navy/5 border border-navy/20 rounded-lg px-4 py-3 mb-3.5 flex items-baseline justify-between">
+                <div className="font-mono text-[9px] text-dim tracking-[0.12em]">TRANSACTIONS THIS WEEK</div>
+                <div className="flex items-baseline gap-2">
+                  <span className="font-condensed font-black text-3xl text-charcoal">
+                    {data.transactionsThisWeek?.toLocaleString() || '—'}
+                  </span>
+                  {data.deltas?.transactions && (
+                    <span className={`font-mono text-[11px] px-1.5 py-0.5 rounded ${
+                      data.deltas.transactions.startsWith('-')
+                        ? 'bg-crimson/10 text-crimson'
+                        : 'bg-green/10 text-green'
+                    }`}>
+                      {data.deltas.transactions.startsWith('-') ? '▼' : '▲'} {data.deltas.transactions}
+                    </span>
+                  )}
+                </div>
+              </div>
+
               {/* Metrics */}
               <div className="space-y-0">
                 {[
-                  {
-                    label: 'Transactions this week',
-                    value: data.transactionsThisWeek?.toLocaleString() || '—',
-                    delta: data.deltas?.transactions,
-                    up: !data.deltas?.transactions?.startsWith('-'),
-                  },
                   {
                     label: 'Total addresses',
                     value: data.totalAddresses?.toLocaleString() || '—',
@@ -233,6 +260,12 @@ export function WeeklyReportModal({ open, onClose }: WeeklyReportModalProps) {
                     delta: null,
                     up: true,
                   },
+                  {
+                    label: 'Top method',
+                    value: cleanMethod(data.topMethod),
+                    delta: null,
+                    up: true,
+                  },
                 ].map(row => (
                   <div
                     key={row.label}
@@ -249,7 +282,7 @@ export function WeeklyReportModal({ open, onClose }: WeeklyReportModalProps) {
                               ? 'bg-green/10 text-green'
                               : 'bg-crimson/10 text-crimson'
                         }`}>
-                          {row.delta}
+                          {row.delta === 'stable' ? 'stable' : `${row.up ? '▲' : '▼'} ${row.delta}`}
                         </span>
                       )}
                     </div>
